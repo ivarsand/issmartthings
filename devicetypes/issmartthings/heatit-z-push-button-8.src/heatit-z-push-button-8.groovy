@@ -422,6 +422,113 @@ private updateStatus(){
     }
 }
 
+/*****************************************************************************************************************
+ *  Static Matadata Functions:
+ *
+ *  These functions encapsulate metadata about the device. Mostly obtained from:
+ *   Z-wave Alliance Reference for Fibaro Dimmer 2: http://products.z-wavealliance.org/products/1729
+ *****************************************************************************************************************/
+
+/**
+ *  getCommandClassVersions()
+ *
+ *  Returns a map of the command class versions supported by the device. Used by parse() and zwaveEvent() to
+ *  extract encapsulated commands from MultiChannelCmdEncap, MultiInstanceCmdEncap, SecurityMessageEncapsulation,
+ *  and Crc16Encap messages.
+ *
+ *  Reference: http://products.z-wavealliance.org/products/1729/classes
+ **/
+private getCommandClassVersions() {
+    return [0x20: 1, // Basic V1
+            0x22: 1, // Application Status V1
+            0x26: 3, // Switch Multilevel V3
+            // xx 0x27: 1, // Switch All V1
+            0x28: 1, // Switch Toggle Binary
+/*            0x2B: 1, // Scene Activation V1
+            0x31: 4, // Sensor Multilevel V4
+            0x32: 3, // Meter V3
+            0x56: 1, // CRC16 Encapsulation V1
+*/
+            0x59: 1, // Association Group Information V1
+            0x5A: 1, // Device Reset Locally V1
+            0x5B: 1, // Central Scene
+            //0x5E: 2, // Z-Wave Plus Info V2 (Not supported by SmartThings)
+            0x60: 3, // Multi Channel V4 (Device supports V4, but SmartThings only supports V3)
+            0x70: 1, // Configuration V1
+            // xx 0x71: 3, // Notification V5 ((Device supports V5, but SmartThings only supports V3)
+            0x72: 2, // Manufacturer Specific V2
+            0x73: 1, // Powerlevel V1
+            // xx 0x75: 2, // Protection V2
+            0x7A: 2, // Firmware Update MD V3 (Device supports V3, but SmartThings only supports V2)
+            0x85: 2, // Association V2
+            0x86: 1, // Version V2 (Device supports V2, but SmartThings only supports V1)
+            0x8E: 2, // Multi Channel Association V3 (Device supports V3, but SmartThings only supports V2)
+            // xx 0x98: 1  // Security V1
+           ]
+}
+
+/**
+ *  getParamsMd()
+ *
+ *  Returns device parameters metadata. Used by sync(), updateSyncPending(),  and generatePrefsParams().
+ *
+ *  Reference: http://products.z-wavealliance.org/products/1729/configs
+ **/
+private getParamsMd() {
+    return [
+        [id: 1, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
+         name: "Upper paddle buttons mode",
+         description : "Configuration of Pair Mode for the upper two buttons (button #1 and #2)",
+         options: ["0" : "0: Separate mode (toggle mode). (Default)",
+                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
+        [id: 2, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
+         name: "Middle paddle buttons mode",
+         description : "Configuration of Pair Mode for the upper two buttons (button #3 and #4)",
+         options: ["0" : "0: Separate mode (toggle mode). (Default)",
+                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
+        [id: 3, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
+         name: "Lower paddle buttons mode",
+         description : "Configuration of Pair Mode for the upper two buttons (button #5 and #6)",
+         options: ["0" : "0: Separate mode (toggle mode). (Default)",
+                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
+
+
+/*
+        [id:  1, size: 1, type: "number", range: "1..98", defaultValue: 1, required: false, readonly: false,
+         name: "Minimum Brightness Level",
+         description: "Set automatically during the calibration process, but can be changed afterwards.\n" +
+         "Values: 1-98 = Brightness level (%)"],
+*/
+
+
+
+
+    ]
+}
+
+/**
+ *  getAssocGroupsMd()
+ *
+ *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
+ *
+ *  Reference: http://products.z-wavealliance.org/products/1729/assoc
+ **/
+private getAssocGroupsMd() {
+    return [
+        [id:  1, maxNodes: 1, name: "Lifeline",
+         description : "Reports device state. Main Z-Wave controller should be added to this group."],
+
+		[id:  2, maxNodes: 5, name: "Upper row buttons association",
+         description : "Send On/Off, dim Up/Down when row 1 is used."],
+		[id:  3, maxNodes: 5, name: "Second row buttons association",
+         description : "Send On/Off, dim Up/Down when row 2 is used."],
+		[id:  4, maxNodes: 5, name: "Third row buttons association",
+         description : "Send On/Off, dim Up/Down when row 3 is used."],
+		[id:  5, maxNodes: 5, name: "Bottom row buttons association",
+         description : "Send On/Off, dim Up/Down when row 4 is used."],
+	]
+}
+
 /*
 // Correct configure for dim events:
 
