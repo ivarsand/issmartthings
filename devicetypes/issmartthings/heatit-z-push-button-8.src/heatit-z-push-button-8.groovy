@@ -28,6 +28,14 @@ metadata {
 
 		command "resetBatteryRuntime"
 		command "describeAttributes"
+        command "pushOn1"
+        command "pushOff1"
+        command "pushOn2"
+        command "pushOff2"
+        command "pushOn3"
+        command "pushOff3"
+        command "pushOn4"
+        command "pushOff4"
         
 		attribute "numberOfButtons", "number"
         attribute "Button Events", "enum",  ["#1 pushed", "#1 held", "#1 double clicked", "#1 click held", "#1 hold released", "#1 click hold released", "#2 pushed", "#2 held", "#2 double clicked", "#2 click held", "#2 hold released", "#2 click hold released", "#3 pushed", "#3 held", "#3 double clicked", "#3 click held", "#3 hold released", "#3 click hold released", "#4 pushed", "#4 held", "#4 double clicked", "#4 click held", "#4 hold released", "#4 click hold released"]
@@ -45,52 +53,71 @@ metadata {
 
 	}
     tiles (scale: 2){
-		
+    	def tileList = []		
+        tileList << "button"
         multiAttributeTile(name:"button", type:"generic", width:6, height:4) {
   			tileAttribute("device.button", key: "PRIMARY_CONTROL"){
-    		attributeState "default", label:'Controller', backgroundColor:"#44b621", icon:"st.Home.home30"
-            attributeState "held", label: "holding", backgroundColor: "#C390D4"
+    			attributeState "default", label:'Controller', backgroundColor:"#44b621", icon:"st.Home.home30"
+            	attributeState "held", label: "holding", backgroundColor: "#C390D4"
   			}
             tileAttribute ("device.battery", key: "SECONDARY_CONTROL") {
-			attributeState "batteryLevel", label:'${currentValue} % battery'
+				attributeState "batteryLevel", label:'${currentValue} % battery'
             }
-            
         }
-	/*tiles {
-		standardTile("button", "device.button", width: 2, height: 2) {
-			state "default", label: "", icon: "st.Home.home30", backgroundColor: "#ffffff"
-            state "held", label: "holding", icon: "st.Home.home30", backgroundColor: "#C390D4"
-        }
-    	 valueTile("battery", "device.battery", inactiveLabel: false, decoration: "flat") {
-         	tileAttribute ("device.battery", key: "PRIMARY_CONTROL"){
-                        state "battery", label:'${currentValue}% battery', unit:""
-        	}
-        }*/
+		tileList << "configure"
         standardTile("configure", "device.configure", width: 2, height: 2, decoration: "flat") {
 			state "default", label: "", icon:"st.secondary.configure", backgroundColor: "#ffffff", action: "configuration.configure"
         }
-      	standardTile(
+
+		standardTile(
 			"batteryRuntime", "device.batteryRuntime", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 			state "batteryRuntime", label:'Battery: ${currentValue} Double tap to reset counter', unit:"", action:"resetBatteryRuntime"
 		}
+        tileList << "statusText2"
         standardTile(
 			"statusText2", "device.statusText2", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 			state "statusText2", label:'${currentValue}', unit:"", action:"resetBatteryRuntime"
 		}
+        tileList << "refresh"
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-		standardTile("B1.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push B1', action: "push1"
-		}
-		standardTile("B2.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push B2', action: "push2"
+    	(1..4).each { btn ->
+        	def index = btn * 3 - 3
+            tileList << "B${btn}.on".toString()
+        	tileList << "B${btn}.space".toString()
+            tileList << "B${btn}.off".toString()
+            valueTile(tileList[index + 4], "device.button", width: 2, height: 2, decoration: "flat") {
+				state "default", label: 'I', action: "pushOn${btn}"
+            }
+        	standardTile(tileList[index + 5], "device.button", width: 2, height: 2) {
+				state "default", label: "${btn}"
+            }
+            valueTile(tileList[index + 6], "device.button", width: 2, height: 2, decoration: "flat") {
+				state "default", label: 'O', action: "pushOff${btn}"
+            }
 		}
 
-        main "button"
+
+/*
+		valueTile("B1.on", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'I', action: "pushOn1"
+		}
+		standardTile("B1.space", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: '1'
+		}
+		valueTile("B1.off", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'O', action: "pushOff1"
+		}
+*/        
+
+//        main "button"
 //		details(["button", "battery", "configure", "statusText2", "refresh"])
-		details(["button", "configure", "statusText2", "refresh", "B1.push", "B2.push"])
+//		details(["button", "configure", "statusText2", "refresh", "B1.on", "B1.space", "B1.off"])
+        main(tileList.take(1))
+		details(tileList)
+
 	}
     preferences {
 
@@ -509,16 +536,34 @@ def pushed(int button, int action) {
     String motion = actions[action]
     String motionDescription = actionsDescription[action]
 
-	logger( "$device.displayName button $button was $motionDescription", "trace")
+	logger( "$device.displayName button $button was $motionDescription", "info")
 
 	sendEvent(name: "button", value: "$actionsDescription", data: [buttonNumber: button, action: "$motion"], source: "COMMAND", descriptionText: "$device.displayName button $button was $motionDescription", isStateChange: true)
 }
 
-def push1() {
+def pushOn1() {
 	pushed(1, 0)
 }
-def push2() {
+def pushOff1() {
 	pushed(2, 0)
+}
+def pushOn2() {
+	pushed(3, 0)
+}
+def pushOff2() {
+	pushed(4, 0)
+}
+def pushOn3() {
+	pushed(5, 0)
+}
+def pushOff3() {
+	pushed(6, 0)
+}
+def pushOn4() {
+	pushed(7, 0)
+}
+def pushOff4() {
+	pushed(8, 0)
 }
 
 

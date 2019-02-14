@@ -18,6 +18,7 @@ metadata {
         capability "Button"
         capability "Configuration"
         capability "Holdable Button"
+        capability "Momentary"
         capability "Indicator"
         capability "Switch"
         capability "Sensor"
@@ -25,6 +26,19 @@ metadata {
 
         attribute "sequenceNumber", "number"
         attribute "numberOfButtons", "number"
+
+        command "push1"
+        command "hold1"
+        command "push2"
+        command "hold2"
+        command "push3"
+        command "hold3"
+        command "push4"
+        command "hold4"
+        command "push5"
+        command "hold5"
+        command "push6"
+        command "hold6"
 
         fingerprint mfr: "0234", prod: "0003", model: "010C"
 
@@ -68,59 +82,64 @@ metadata {
 
 
 		standardTile("B1", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Button 1', icon: "st.unknown.zwave.remote-controller"
+			state "default", label: "Button 1", icon: "st.unknown.zwave.remote-controller"
 		}
-		standardTile("B1.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push1"
+		standardTile("B1.push", "device.button", inactiveLabel: false ,  width: 2, height: 2, decoration: "flat") {
+			state "on", label: "Push", action: "push1", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B1.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "hold1"
+			state "off", label: "Hold", action:"hold1", icon: "st.unknown.zwave.remote-controller"
 		}
+        
 		standardTile("B2", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Button 2X', icon: "st.unknown.zwave.remote-controller"
+			state "default", label: "Button 2", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B2.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push 2', action: "button.push"
+			state "default", label: '${currentValue}', action: "push2", icon: "st.unknown.zwave.remote-controller"
+			//state "off", label: '${currentValue}', action: "momentary.push", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B2.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold 2', action: "button.hold"
+			state("default", label: '${currentValue}', action: "hold2", icon: "st.unknown.zwave.remote-controller")
 		}
 
 		standardTile("B3", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 3', icon: "st.unknown.zwave.remote-controller"
 		}
-		standardTile("B3.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "button.push3"
+		standardTile("B3.push", "device.button.3", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'Push', action: "push3", icon: "st.unknown.zwave.remote-controller"
 		}
-		standardTile("B3.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "button.hold3"
+		standardTile("B3.hold", "device.button.3", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'Hold', action: "hold3", icon: "st.unknown.zwave.remote-controller"
 		}
+        
 		standardTile("B4", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 4', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B4.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push 4', action: "push4"
+			state "default", label: '${currentValue}', action: "push4"
 		}
 		standardTile("B4.hold", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Hold', action: "hold4"
 		}
+        
 		standardTile("B5", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 5', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B5.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push5"
+			state "default", label: 'Push', action: "push5", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B5.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "hold5"
+			state "default", label: 'Hold', action: "hold5", icon: "st.unknown.zwave.remote-controller"
 		}
+        
 		standardTile("B6", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 6', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B6.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push6"
+			state "default", label: 'Push', action: "push6", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B6.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "hold6"
+			state "default", label: 'Hold', action: "hold6", icon: "st.unknown.zwave.remote-controller"
 		}
 		
 standardTile("configure", "device.configure", inactiveLabel: false, width: 1, height: 1, decoration: "flat") {
@@ -208,11 +227,12 @@ def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotificat
               pushEvent(cmd.sceneNumber, "pushed")
            break
            case 1:
-              if (settings.holdMode == "2") pushEvent(cmd.sceneNumber, "held")
+              //if (settings.holdMode == "2") pushEvent(cmd.sceneNumber, "held")
+              pushEvent(cmd.sceneNumber, "released")
            break
            case 2:
               //if (!settings.holdMode || settings.holdMode == "1") pushEvent(cmd.sceneNumber, "held")
-              if (settings.holdMode == "1") pushEvent(cmd.sceneNumber, "held")
+              pushEvent(cmd.sceneNumber, "held")
            break
            case 3:
               pushEvent(cmd.sceneNumber + 8, "pushed")
@@ -333,12 +353,13 @@ def pushEvent(button, value = "pushed") {
 	sendEvent(name: "button", value: value, data: [buttonNumber: button, action: "pushed"], source: "COMMAND", descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
 }
 def holdEvent(button, value) {
-	logger("holdEvent: ${value}", "trace")
+	logger("holdEvent: ${value}", "info")
 	//createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
     sendEvent(name: "button", value: "held", data: [buttonNumber: button, action: "held"], source: "COMMAND", descriptionText: "$device.displayName button $button was held", isStateChange: true)
 }
 
 def push1() {
+	logger("Push1()", "info")
 	pushEvent(1, "pushed")
 }
 def push2() {
@@ -397,7 +418,9 @@ def installed() {
 }
 
 def updated() {
-    logging("updated()")
+    state.loggingLevelIDE     = 5
+    state.loggingLevelDevice  = 2
+    logger("updated()")
     configure()
 }
 
