@@ -57,6 +57,7 @@ metadata {
         status "button 6 released":  "command: 5B03, payload: 2C 01 06"
         status "button 6 double":  "command: 5B03, payload: 2F 03 06"
 	}
+    
 	tiles (scale: 2) {
 		multiAttributeTile(name:"switch", type: "generic", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute("device.switch", key: "PRIMARY_CONTROL") {
@@ -67,7 +68,7 @@ metadata {
 
 
 		standardTile("B1", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Button 1X', icon: "st.unknown.zwave.remote-controller"
+			state "default", label: 'Button 1', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B1.push", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Push', action: "push1"
@@ -79,26 +80,26 @@ metadata {
 			state "default", label: 'Button 2X', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B2.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push2"
+			state "default", label: 'Push 2', action: "button.push"
 		}
 		standardTile("B2.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "hold2"
+			state "default", label: 'Hold 2', action: "button.hold"
 		}
 
 		standardTile("B3", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 3', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B3.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push3"
+			state "default", label: 'Push', action: "button.push3"
 		}
 		standardTile("B3.hold", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Hold', action: "hold3"
+			state "default", label: 'Hold', action: "button.hold3"
 		}
 		standardTile("B4", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Button 4', icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B4.push", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'Push', action: "push4"
+			state "default", label: 'Push 4', action: "push4"
 		}
 		standardTile("B4.hold", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Hold', action: "hold4"
@@ -153,7 +154,7 @@ standardTile("configure", "device.configure", inactiveLabel: false, width: 1, he
                     "4" : "Debug",
                     "5" : "Trace"
                 ],
-                defaultValue: "3", // iPhone users can uncomment these lines!
+                defaultValue: "5", // iPhone users can uncomment these lines!
                 required: true
             )
 
@@ -178,23 +179,9 @@ standardTile("configure", "device.configure", inactiveLabel: false, width: 1, he
     }
 }
 
-// parse events into attributes
-def parseXX(String description) {
-	log.debug('parse')
-	def result = null
-    def cmd = zwave.parse(description)
-    if (cmd) {
-        result = zwaveEvent(cmd)
-        log.debug "Parsed ${cmd} to ${result.inspect()}"
-    } else {
-        log.debug "Non-parsed event: ${description}"
-    }
-    return result
-}
-
 def parse(String description) {
 	def results = []
-     logging("${description}")
+     logger("${description}", "info")
 	if (description.startsWith("Err")) {
 	    results = createEvent(descriptionText:description, displayed:true)
 	} else {
@@ -209,63 +196,120 @@ def parse(String description) {
 	return results
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
-        logging(cmd)
-        logging("keyAttributes: $cmd.keyAttributes")
-        logging("sceneNumber: $cmd.sceneNumber")
-        logging("sequenceNumber: $cmd.sequenceNumber")
+/*****************************************************************************************************************
+ *  Z-wave Event Handlers.
+ *****************************************************************************************************************/
 
+def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
+        logger(cmd, "info")
         sendEvent(name: "sequenceNumber", value: cmd.sequenceNumber, displayed:false)
         switch (cmd.keyAttributes) {
            case 0:
               pushEvent(cmd.sceneNumber, "pushed")
            break
            case 1:
-              if (settings.holdMode == "2") holdEvent(cmd.sceneNumber, "held")
+              if (settings.holdMode == "2") pushEvent(cmd.sceneNumber, "held")
            break
            case 2:
-              if (!settings.holdMode || settings.holdMode == "1") holdEvent(cmd.sceneNumber, "held")
+              //if (!settings.holdMode || settings.holdMode == "1") pushEvent(cmd.sceneNumber, "held")
+              if (settings.holdMode == "1") pushEvent(cmd.sceneNumber, "held")
            break
            case 3:
               pushEvent(cmd.sceneNumber + 8, "pushed")
            break
            default:
-               logging("Unhandled CentralSceneNotification: ${cmd}")
+               logger("Unhandled CentralSceneNotification: ${cmd}", "error")
            break
         }
 }
 
-/**
- *  zwaveEvent( COMMAND_CLASS_SECURITY (0x98) : SECURITY_MESSAGE_ENCAPSULATION (0x81) )
- *
- *  The Security Message Encapsulation command is used to encapsulate Z-Wave commands using AES-128.
- *
- *  Action: Extract the encapsulated command and pass to the appropriate zwaveEvent() handler.
- *    Set state.useSecurity flag to true.
- *
- *  cmd attributes:
- *    List<Short> commandByte         Parameters of the encapsulated command.
- *    Short   commandClassIdentifier  Command Class ID of the encapsulated command.
- *    Short   commandIdentifier       Command ID of the encapsulated command.
- *    Boolean secondFrame             Indicates if first or second frame.
- *    Short   sequenceCounter
- *    Boolean sequenced               True if the command is transmitted using multiple frames.
- **/
+def zwaveEvent(physicalgraph.zwave.commands.multichannelassociationv2.MultiChannelAssociationReport cmd) {
+    /**
+     *  zwaveEvent( COMMAND_CLASS_MULTI_CHANNEL_ASSOCIATION V2 (0x8E) : ASSOCIATION_REPORT )
+     *
+     *  The Multi-channel Association Report command is used to advertise the current destinations of a given
+     *  association group (nodes and endpoints).
+     *
+     *  Action: Store the destinations in the assocGroup cache, update syncPending, and log an info message.
+     *
+     *  Note: Ideally, we want to update the corresponding preference value shown on the Settings GUI, however this
+     *  is not possible due to security restrictions in the SmartThings platform.
+     *
+     *  Example: MultiChannelAssociationReport(groupingIdentifier: 2, maxNodesSupported: 8, nodeId: [9,0,1,1,2,3],
+     *            reportsToFollow: 0)
+     **/
+    logger("zwaveEvent(): Multi-Channel Association Report received: ${cmd}","trace")
+
+    state."assocGroupCache${cmd.groupingIdentifier}" = cmd.nodeId // Must not sort as order is important.
+
+    def assocGroupName = getAssocGroupsMd().find( { it.id == cmd.groupingIdentifier} ).name
+    // Display to user in hex format (same as IDE):
+    def hexArray  = []
+    cmd.nodeId.each { hexArray.add(String.format("%02X", it)) };
+    logger("Association Group #${cmd.groupingIdentifier} [${assocGroupName}] contains destinations: ${hexArray}","info")
+
+    updateSyncPending()
+}
+
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
+    /**
+     *  zwaveEvent( COMMAND_CLASS_SECURITY (0x98) : SECURITY_MESSAGE_ENCAPSULATION (0x81) )
+     *
+     *  The Security Message Encapsulation command is used to encapsulate Z-Wave commands using AES-128.
+     *
+     *  Action: Extract the encapsulated command and pass to the appropriate zwaveEvent() handler.
+     *    Set state.useSecurity flag to true.
+     *
+     *  cmd attributes:
+     *    List<Short> commandByte         Parameters of the encapsulated command.
+     *    Short   commandClassIdentifier  Command Class ID of the encapsulated command.
+     *    Short   commandIdentifier       Command ID of the encapsulated command.
+     *    Boolean secondFrame             Indicates if first or second frame.
+     *    Short   sequenceCounter
+     *    Boolean sequenced               True if the command is transmitted using multiple frames.
+     **/
     log.debug "zwaveEvent(): Security Encapsulated Command received: ${cmd}"
 
     state.useSecurity = true
 
     def encapsulatedCommand = cmd.encapsulatedCommand(getCommandClassVersions())
     if (encapsulatedCommand) {
+        logger("Before event","trace")
         return zwaveEvent(encapsulatedCommand)
+        logger("After event","trace")
     } else {
         logger("zwaveEvent(): Unable to extract security encapsulated command from: ${cmd}","error")
     }
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd)
-{
+def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
+    /**
+     *  zwaveEvent( COMMAND_CLASS_CONFIGURATION V1 (0x70) : CONFIGURATION_REPORT )
+     *
+     *  The Configuration Report Command is used to advertise the actual value of the advertised parameter.
+     *
+     *  Action: Store the value in the parameter cache, update syncPending, and log an info message.
+     *
+     *  Note: Ideally, we want to update the corresponding preference value shown on the Settings GUI, however this
+     *  is not possible due to security restrictions in the SmartThings platform.
+     *
+     *  cmd attributes:
+     *    List<Short>  configurationValue  Value of parameter (byte array).
+     *    Short        parameterNumber     Parameter ID.
+     *    Short        size                Size of parameter's value (bytes).
+     *
+     *  Example: ConfigurationReport(configurationValue: [0], parameterNumber: 14, reserved11: 0,
+     *            scaledConfigurationValue: 0, size: 1)
+     **/
+    logger("zwaveEvent(): Configuration Report received: ${cmd}","trace")
+
+    state."paramCache${cmd.parameterNumber}" = cmd.scaledConfigurationValue.toInteger()
+    def paramName = getParamsMd().find( { it.id == cmd.parameterNumber }).name
+    logger("Parameter #${cmd.parameterNumber} [${paramName}] has value: ${cmd.scaledConfigurationValue}","info")
+    updateSyncPending()
+}
+
+def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
    	log.debug "basic report"
    	def result = []
     result << createEvent(name:"switch", value: cmd.value ? "on" : "off")
@@ -273,83 +317,82 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd)
     result
 }
 
-private def logging(message) {
-    //if (settings.debug == "true") 
-    log.debug "$message"
+def zwaveEvent(physicalgraph.zwave.Command cmd) {
+	logger("Unhandled zwaveEvent: ${cmd}", "error")
 }
 
 
-def pushEvent(button, value) {
-	logging("pushEvent: ${value}")
+/*****************************************************************************************************************
+ *  Button handling from App not device
+ *****************************************************************************************************************/
+
+def pushEvent(button, value = "pushed") {
+	logger("pushEvent: ${value} ${button}", "info")
 	//createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
-	sendEvent(name: "button", value: "pushed", data: [buttonNumber: button, action: "pushed"], source: "COMMAND", descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
+	//sendEvent(name: "button", value: "pushed", data: [buttonNumber: button, action: "pushed"], source: "COMMAND", descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
+	sendEvent(name: "button", value: value, data: [buttonNumber: button, action: "pushed"], source: "COMMAND", descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
 }
 def holdEvent(button, value) {
-	logging("holdEvent: ${value}")
+	logger("holdEvent: ${value}", "trace")
 	//createEvent(name: "button", value: value, data: [buttonNumber: button], descriptionText: "$device.displayName button $button was $value", isStateChange: true)
     sendEvent(name: "button", value: "held", data: [buttonNumber: button, action: "held"], source: "COMMAND", descriptionText: "$device.displayName button $button was held", isStateChange: true)
 }
 
-
-def push1()
-{
-	logging("push1")
+def push1() {
 	pushEvent(1, "pushed")
 }
-def push2()
-{
+def push2() {
 	pushEvent(2, "pushed")
 }
-def push3()
-{
-	logging("push3")
+def push3() {
 	pushEvent(3, "pushed")
 }
-def push4()
-{
+def push4() {
 	pushEvent(4, "pushed")
 }
-def push5()
-{
+def push5() {
 	pushEvent(5, "pushed")
 }
-def push6()
-{
+def push6() {
 	pushEvent(6, "pushed")
 }
-def hold1()
-{
+def hold1() {
 	holdEvent(1, "held")
 }
-def hold2()
-{
+def hold2() {
 	holdEvent(2, "held")
 }
-def hold3()
-{
+def hold3() {
 	holdEvent(3, "held")
 }
-def hold4()
-{
+def hold4() {
 	holdEvent(4, "held")
 }
-def hold5()
-{
+def hold5() {
 	holdEvent(5, "held")
 }
-def hold6()
-{
+def hold6() {
 	holdEvent(6, "held")
 }
 
-
-
-def zwaveEvent(physicalgraph.zwave.Command cmd) {
-	logging("Unhandled zwaveEvent: ${cmd}")
-}
-
 def installed() {
-    logging("installed()")
+    /**
+     *  Runs when the device is first installed.
+     *
+     *  Action: Set initial values for internal state, and request a full configuration report from the device.
+     **/
+    log.trace "installed()"
+
+    state.installedAt = now()
+    state.energyLastReset = new Date().format("YYYY/MM/dd \n HH:mm:ss", location.timeZone)
+    state.loggingLevelIDE     = 5
+    state.loggingLevelDevice  = 2
+    state.protectLocalTarget  = 0
+    state.protectRFTarget     = 0
+
+    sendEvent(name: "fault", value: "clear", descriptionText: "Fault cleared", displayed: false)
+
+    refreshConfig()
     configure()
 }
 
@@ -359,7 +402,7 @@ def updated() {
 }
 
 def configure() {
-	logging("configure()")
+	logger("configure()", "trace")
 	if (!state.updatedLastRanAt || now() >= state.updatedLastRanAt + 2000) {
 		state.updatedLastRanAt = now()
 
@@ -367,13 +410,13 @@ def configure() {
         getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
             state."paramTarget${it.id}" = settings."configParam${it.id}"?.toInteger()
         }
-/*
+
         // Update Assoc Group target values:
-        state.assocGroupTarget1 = [ zwaveHubNodeId ] // Assoc Group #1 is Lifeline and will contain controller only.
+//        state.assocGroupTarget1 = [ zwaveHubNodeId ] // Assoc Group #1 is Lifeline and will contain controller only.
         getAssocGroupsMd().findAll( { it.id != 1} ).each {
             state."assocGroupTarget${it.id}" = parseAssocGroupInput(settings."configAssocGroup${it.id}", it.maxNodes)
         }
-*/
+
         //sendEvent(name: "checkInterval", value: 2 * 60 * 12 * 60 + 5 * 60, displayed: false, data: [protocol: "zwave", hubHardwareId: device.hub.hardwareID])
         sendEvent(name: "numberOfButtons", value: 6, displayed: true)
         
@@ -383,16 +426,40 @@ def configure() {
 		state.isConfigured = "true"
     }
 	else {
-		log.trace "updated(): Ran within last 2 seconds so aborting."
+		logger("updated(): Ran within last 2 seconds so aborting.", "info")
 	}
     
 }
 
+private refreshConfig() {
+    /**
+     *  Request configuration reports from the physical device: [ Configuration, Association, Protection,
+     *   SecuritySupportedCommands, Powerlevel, Manufacturer-Specific, Firmware Metadata, Version, etc. ]
+     *
+     *  Really only needed at installation or when debugging, as sync will request the necessary reports when the
+     *  configuration is changed.
+     */
+    logger("refreshConfig()","trace")
+/*
+    def cmds = []
+
+    getParamsMd().each { cmds << zwave.configurationV1.configurationGet(parameterNumber: it.id) }
+    getAssocGroupsMd().each { cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: it.id) }
+
+    cmds << zwave.protectionV2.protectionGet()
+    cmds << zwave.securityV1.securityCommandsSupportedGet()
+    cmds << zwave.manufacturerSpecificV2.manufacturerSpecificGet()
+    cmds << zwave.firmwareUpdateMdV2.firmwareMdGet()
+    cmds << zwave.versionV1.versionGet()
+    cmds << zwave.powerlevelV1.powerlevelGet()
+
+    sendSecureSequence(cmds, 1000) // Delay must be at least 1000 to reliabilty get all results processed.
+*/
+}
 def ping() {
     logging("ping()")
 	logging("Is ping necessary?")
 }
-
 
 def on() {
 	log.debug "ON"
@@ -401,6 +468,7 @@ def on() {
         zwave.basicV1.basicGet().format(),
     ], 100)
 }
+
 def off() {
 	log.debug "OFF"
     delayBetween([
@@ -408,12 +476,14 @@ def off() {
         zwave.basicV1.basicGet().format(),
     ], 100)
 }
+
 def refresh() {
 	log.debug "REFRESH"
     delayBetween([
         zwave.basicV1.basicGet().format(),
     ], 100)
 }
+
 def poll() {
 	log.debug "POLL"
     delayBetween([
@@ -421,19 +491,75 @@ def poll() {
     ], 100)
 }
 
-/**
- *  sync()
- *
- *  Manages synchronisation of parameters, association groups, and protection state with the physical device.
- *  The syncPending attribute advertises remaining number of sync operations.
- *
- *  Does not return a list of commands, it sends them immediately using sendSecureSequence(). This is required if
- *  triggered by schedule().
- *
- *  Parameters:
- *   forceAll    Force all items to be synced, otherwise only changed items will be synced.
- **/
+private parseAssocGroupInput(string, maxNodes) {
+    /**
+     *  Converts a comma-delimited string of destinations (nodes and endpoints) into an array suitable for passing to
+     *  multiChannelAssociationSet(). All numbers are interpreted as hexadecimal. Anything that's not a valid node or
+     *  endpoint is discarded (warn). If the list has more than maxNodes, the extras are discarded (warn).
+     *
+     *  Example input strings:
+     *    "9,A1"      = Nodes: 9 & 161 (no multi-channel endpoints)            => Output: [9, 161]
+     *    "7,8:1,8:2" = Nodes: 7, Endpoints: Node8:endpoint1 & node8:endpoint2 => Output: [7, 0, 8, 1, 8, 2]
+     */
+    logger("parseAssocGroupInput(): Parsing Association Group Nodes: ${string}","trace")
+
+    // First split into nodes and endpoints. Count valid entries as we go.
+    if (string) {
+        def nodeList = string.split(',')
+        def nodes = []
+        def endpoints = []
+        def count = 0
+
+        nodeList = nodeList.each { node ->
+            node = node.trim()
+            if ( count >= maxNodes) {
+                logger("parseAssocGroupInput(): Number of nodes and endpoints is greater than ${maxNodes}! The following node was discarded: ${node}","warn")
+            }
+            else if (node.matches("\\p{XDigit}+")) { // There's only hexadecimal digits = nodeId
+                def nodeId = Integer.parseInt(node,16)  // Parse as hex
+                if ( (nodeId > 0) & (nodeId < 256) ) { // It's a valid nodeId
+                    nodes << nodeId
+                    count++
+                }
+                else {
+                    logger("parseAssocGroupInput(): Invalid nodeId: ${node}","warn")
+                }
+            }
+            else if (node.matches("\\p{XDigit}+:\\p{XDigit}+")) { // endpoint e.g. "0A:2"
+                def endpoint = node.split(":")
+                def nodeId = Integer.parseInt(endpoint[0],16) // Parse as hex
+                def endpointId = Integer.parseInt(endpoint[1],16) // Parse as hex
+                if ( (nodeId > 0) & (nodeId < 256) & (endpointId > 0) & (endpointId < 256) ) { // It's a valid endpoint
+                    endpoints.addAll([nodeId,endpointId])
+                    count++
+                }
+                else {
+                    logger("parseAssocGroupInput(): Invalid endpoint: ${node}","warn")
+                }
+            }
+            else {
+                logger("parseAssocGroupInput(): Invalid nodeId: ${node}","warn")
+            }
+        }
+
+        return (endpoints) ? nodes + [0] + endpoints : nodes
+    }
+    else {
+        return []
+    }
+}
+
 private sync(forceAll = false) {
+    /**
+     *  Manages synchronisation of parameters, association groups, and protection state with the physical device.
+     *  The syncPending attribute advertises remaining number of sync operations.
+     *
+     *  Does not return a list of commands, it sends them immediately using sendSecureSequence(). This is required if
+     *  triggered by schedule().
+     *
+     *  Parameters:
+     *   forceAll    Force all items to be synced, otherwise only changed items will be synced.
+     **/
     logger("sync(): Syncing configuration with the physical device.","info")
 
     def cmds = []
@@ -485,43 +611,66 @@ private sync(forceAll = false) {
     sendSecureSequence(cmds,1000) // Need a delay of at least 1000ms.
 }
 
-/**
- *  secure(cmd)
- *
- *  Secures and formats a command using securityMessageEncapsulation.
- *
- *  Note: All commands are secured, there is little benefit to not securing commands that are not in
- *  state.secureCommandClasses.
- **/
+private updateSyncPending() {
+    /**
+     *  Updates syncPending attribute, which advertises remaining number of sync operations.
+     **/
+    def syncPending = 0
+
+    getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
+        if ( (state."paramTarget${it.id}" != null) & (state."paramCache${it.id}" != state."paramTarget${it.id}") ) {
+            syncPending++
+        }
+    }
+
+    getAssocGroupsMd().each {
+        def cachedNodes = state."assocGroupCache${it.id}"
+        def targetNodes = state."assocGroupTarget${it.id}"
+
+        if ( cachedNodes != targetNodes ) {
+            syncPending++
+        }
+    }
+
+/*    if ( (state.protectLocalCache == null) || (state.protectRFCache == null) ||
+         (state.protectLocalCache != state.protectLocalTarget) || (state.protectRFCache != state.protectRFTarget) ) {
+        syncPending++
+    } */
+
+    logger("updateSyncPending(): syncPending: ${syncPending}", "info")
+    if ((syncPending == 0) && (device.latestValue("syncPending") > 0)) logger("Sync Complete.", "info")
+    sendEvent(name: "syncPending", value: syncPending, displayed: false)
+}
+
 private secure(physicalgraph.zwave.Command cmd) {
+    /**
+     *  Secures and formats a command using securityMessageEncapsulation.
+     *
+     *  Note: All commands are secured, there is little benefit to not securing commands that are not in
+     *  state.secureCommandClasses.
+     **/
     //if ( state.secureCommandClasses.contains(cmd.commandClassId.toInteger()) ) {...
     return zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
 }
 
-/**
- *  secureSequence()
- *
- *  Secure an array of commands. Returns a list of formatted commands.
- **/
 private secureSequence(commands, delay = 200) {
+    /**
+     *  Secure an array of commands. Returns a list of formatted commands.
+     **/
     return delayBetween(commands.collect{ secure(it) }, delay)
 }
 
-/**
- *  sendSecureSequence()
- *
- *  Secure an array of commands and send them using sendHubCommand.
- **/
 private sendSecureSequence(commands, delay = 200) {
+    /**
+     *  Secure an array of commands and send them using sendHubCommand.
+     **/
     sendHubCommand(commands.collect{ response(secure(it)) }, delay)
 }
 
-/**
- *  generatePrefsParams()
- *
- *  Generates preferences (settings) for device parameters.
- **/
 private generatePrefsParams() {
+    /**
+     *  Generates preferences (settings) for device parameters.
+     **/
         section {
             input (
                 type: "paragraph",
@@ -562,12 +711,10 @@ private generatePrefsParams() {
         } // section
 }
 
-/**
- *  generatePrefsAssocGroups()
- *
- *  Generates preferences (settings) for Association Groups.
- **/
 private generatePrefsAssocGroups() {
+    /**
+     *  Generates preferences (settings) for Association Groups.
+     **/
         section {
             input (
                 type: "paragraph",
@@ -593,16 +740,18 @@ private generatePrefsAssocGroups() {
     }
 }
 
-/**
- *  logger()
- *
- *  Wrapper function for all logging:
- *    Logs messages to the IDE (Live Logging), and also keeps a historical log of critical error and warning
- *    messages by sending events for the device's logMessage attribute.
- *    Configured using configLoggingLevelIDE and configLoggingLevelDevice preferences.
- **/
-private logger(msg, level = "debug") {
+private def logging(message) {
+    //if (settings.debug == "true") 
+    log.debug "$message"
+}
 
+private logger(msg, level = "debug") {
+    /**
+     *  Wrapper function for all logging:
+     *    Logs messages to the IDE (Live Logging), and also keeps a historical log of critical error and warning
+     *    messages by sending events for the device's logMessage attribute.
+     *    Configured using configLoggingLevelIDE and configLoggingLevelDevice preferences.
+     **/
     switch(level) {
         case "error":
             if (state.loggingLevelIDE >= 1) log.error msg
@@ -639,16 +788,14 @@ private logger(msg, level = "debug") {
  *   Z-wave Alliance Reference for Fibaro Dimmer 2: http://products.z-wavealliance.org/products/1729
  *****************************************************************************************************************/
 
-/**
- *  getCommandClassVersions()
- *
- *  Returns a map of the command class versions supported by the device. Used by parse() and zwaveEvent() to
- *  extract encapsulated commands from MultiChannelCmdEncap, MultiInstanceCmdEncap, SecurityMessageEncapsulation,
- *  and Crc16Encap messages.
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/classes
- **/
 private getCommandClassVersions() {
+    /**
+     *  Returns a map of the command class versions supported by the device. Used by parse() and zwaveEvent() to
+     *  extract encapsulated commands from MultiChannelCmdEncap, MultiInstanceCmdEncap, SecurityMessageEncapsulation,
+     *  and Crc16Encap messages.
+     *
+     *  Reference: http://products.z-wavealliance.org/products/1729/classes
+     **/
     return [0x20: 1, // Basic V1
             0x22: 1, // Application Status V1
             0x26: 3, // Switch Multilevel V3
@@ -673,18 +820,16 @@ private getCommandClassVersions() {
             0x85: 2, // Association V2
             0x86: 1, // Version V2 (Device supports V2, but SmartThings only supports V1)
             0x8E: 2, // Multi Channel Association V3 (Device supports V3, but SmartThings only supports V2)
-            // xx 0x98: 1  // Security V1
+            0x98: 1,  // Security V1
            ]
 }
 
-/**
- *  getParamsMd()
- *
- *  Returns device parameters metadata. Used by sync(), updateSyncPending(),  and generatePrefsParams().
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/configs
- **/
 private getParamsMd() {
+    /**
+     *  Returns device parameters metadata. Used by sync(), updateSyncPending(),  and generatePrefsParams().
+     *
+     *  Reference: http://products.z-wavealliance.org/products/1729/configs
+     **/
     return [
         [id: 1, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
          name: "Upper paddle buttons mode",
@@ -820,14 +965,12 @@ private getParamsMd() {
     ]
 }
 
-/**
- *  getAssocGroupsMd()
- *
- *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/assoc
- **/
 private getAssocGroupsMd() {
+    /**
+     *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
+     *
+     *  Reference: http://products.z-wavealliance.org/products/1729/assoc
+     **/
     return [
         [id:  1, maxNodes: 1, name: "Lifeline",
          description : "Reports device state. Main Z-Wave controller should be added to this group."],

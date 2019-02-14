@@ -80,11 +80,63 @@ metadata {
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
-        
+
+		standardTile("B1.push", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'Push B1', action: "push1"
+		}
+		standardTile("B2.push", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: 'Push B2', action: "push2"
+		}
+
         main "button"
-		details(["button", "battery", "configure", "statusText2", "refresh"])
+//		details(["button", "battery", "configure", "statusText2", "refresh"])
+		details(["button", "configure", "statusText2", "refresh", "B1.push", "B2.push"])
 	}
-    
+    preferences {
+
+        section { // GENERAL:
+            input (
+                type: "paragraph",
+                element: "paragraph",
+                title: "GENERAL:",
+                description: "General device handler settings."
+            )
+
+            input (
+                name: "configLoggingLevelIDE",
+                title: "IDE Live Logging Level: Messages with this level and higher will be logged to the IDE.",
+                type: "enum",
+                options: [
+                    "0" : "None",
+                    "1" : "Error",
+                    "2" : "Warning",
+                    "3" : "Info",
+                    "4" : "Debug",
+                    "5" : "Trace"
+                ],
+                defaultValue: "3", // iPhone users can uncomment these lines!
+                required: true
+            )
+
+            input (
+                name: "configLoggingLevelDevice",
+                title: "Device Logging Level: Messages with this level and higher will be logged to the logMessage attribute.",
+                type: "enum",
+                options: [
+                    "0" : "None",
+                    "1" : "Error",
+                    "2" : "Warning"
+                ],
+                defaultValue: "2", // iPhone users can uncomment these lines!
+                required: true
+            )
+		}
+
+        generatePrefsParams()
+
+        generatePrefsAssocGroups()
+
+    }
 }
 
 def parse(String description) {
@@ -109,16 +161,11 @@ def parse(String description) {
   		}
     }
 }
-  
-def describeAttributes(payload) {
-    	payload.attributes = [
-        [ name: "holdLevel",    type: "number",    range:"1..100", capability: "button" ],
-       	[ name: "Button Events",    type: "enum",    options: ["#1 pushed", "#1 held", "#1 double clicked", "#1 click held", "#1 hold released", "#1 click hold released", "#2 pushed", "#2 held", "#2 double clicked", "#2 click held", "#2 hold released", "#2 click hold released", "#3 pushed", "#3 held", "#3 double clicked", "#3 click held", "#3 hold released", "#3 click hold released", "#4 pushed", "#4 held", "#4 double clicked", "#4 click held", "#4 hold released", "#4 click hold released"], momentary: true ],
-    	[ name: "button",    type: "enum",    options: ["pushed", "held", "double clicked", "click held"],  capability: "button", momentary: true ],
-        ]
-    	return null
-		}	
-        
+
+
+/*****************************************************************************************************************
+ *  Z-wave Event Handlers.
+ *****************************************************************************************************************/
 
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
         def encapsulatedCommand = cmd.encapsulatedCommand([0x98: 1, 0x20: 1])
@@ -305,11 +352,10 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelR
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStartLevelChange cmd) {
 	log.debug "Multilevel Start CHange: $cmd"
 }
+
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
 	log.debug "Multilevel Stop CHange: $cmd"
 }
-
-
 
 def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
         log.debug("battery is $cmd.batteryLevel")
@@ -326,7 +372,6 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
         state.lastbatt = new Date().time
         sendEvent(map)
 }
-
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd){
         log.debug "basic event: $cmd.value"
@@ -355,13 +400,37 @@ def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet
     
     
 }
- 
+
+/*****************************************************************************************************************
+ *  Capability-related Commands:
+ *****************************************************************************************************************/
+
 def refresh() {
-	configure()
+    /**
+     *  Request switchMultilevel, energy, and power reports.
+     *  Also, force a configuration sync.
+     **/
+    logger("refresh()","trace")
+	updateStatus()
+	sync()
+}
+
+def poll() {
+    /**
+     *  poll()                      [Capability: Polling]
+     *
+     *  Calls refresh().
+     **/
+    logger("poll()","trace")
+    refresh()
+}
+
+def refreshOLD() {
+	//configure()
     updateStatus()
 }
 
-  def configure() {
+def configure() {
     
  
     def commands = [ ]
@@ -378,7 +447,14 @@ def refresh() {
     delayBetween(cmds, 500)
 }
 
-
+def describeAttributes(payload) {
+    	payload.attributes = [
+        [ name: "holdLevel",    type: "number",    range:"1..100", capability: "button" ],
+       	[ name: "Button Events",    type: "enum",    options: ["#1 pushed", "#1 held", "#1 double clicked", "#1 click held", "#1 hold released", "#1 click hold released", "#2 pushed", "#2 held", "#2 double clicked", "#2 click held", "#2 hold released", "#2 click hold released", "#3 pushed", "#3 held", "#3 double clicked", "#3 click held", "#3 hold released", "#3 click hold released", "#4 pushed", "#4 held", "#4 double clicked", "#4 click held", "#4 hold released", "#4 click hold released"], momentary: true ],
+    	[ name: "button",    type: "enum",    options: ["pushed", "held", "double clicked", "click held"],  capability: "button", momentary: true ],
+        ]
+    	return null
+		}	
        
 private getBatteryRuntime() {
    def currentmillis = now() - state.batteryRuntimeStart
@@ -423,32 +499,413 @@ private updateStatus(){
 }
 
 /*****************************************************************************************************************
+ *  Button handling from App not device
+ *****************************************************************************************************************/
+
+def pushed(int button, int action) {
+    final String[] actions = ['p0', 'push', 'hold', 'release']
+    final String[] actionsDescription = ['p0', 'pushed', 'held', 'released']
+    
+    String motion = actions[action]
+    String motionDescription = actionsDescription[action]
+
+	logger( "$device.displayName button $button was $motionDescription", "trace")
+
+	sendEvent(name: "button", value: "$actionsDescription", data: [buttonNumber: button, action: "$motion"], source: "COMMAND", descriptionText: "$device.displayName button $button was $motionDescription", isStateChange: true)
+}
+
+def push1() {
+	pushed(1, 0)
+}
+def push2() {
+	pushed(2, 0)
+}
+
+
+
+
+/*****************************************************************************************************************
+ *  SmartThings System Commands:
+ *****************************************************************************************************************/
+
+def installed() {
+    /**
+     *  Runs when the device is first installed.
+     *
+     *  Action: Set initial values for internal state, and request a full configuration report from the device.
+     **/
+    log.trace "installed()"
+
+    state.installedAt = now()
+    state.loggingLevelIDE     = 3
+    state.loggingLevelDevice  = 2
+    state.protectLocalTarget  = 0
+    state.protectRFTarget     = 0
+
+    //sendEvent(name: "fault", value: "clear", descriptionText: "Fault cleared", displayed: false)
+
+    refreshConfig()
+}
+
+def updated() {
+    /**
+     *  Runs when the user hits "Done" from Settings page.
+     *
+     *  Action: Process new settings, sync parameters and association group members with the physical device. Request
+     *  Firmware Metadata, Manufacturer-Specific, and Version reports.
+     *
+     *  Note: Weirdly, update() seems to be called twice. So execution is aborted if there was a previous execution
+     *  within two seconds. See: https://community.smartthings.com/t/updated-being-called-twice/62912
+     **/
+    logger("updated()","trace")
+
+    def cmds = []
+
+    if (!state.updatedLastRanAt || now() >= state.updatedLastRanAt + 2000) {
+        state.updatedLastRanAt = now()
+
+        // Update internal state:
+        state.loggingLevelIDE     = settings.configLoggingLevelIDE.toInteger()
+        state.loggingLevelDevice  = settings.configLoggingLevelDevice.toInteger()
+        state.syncAll             = ("true" == settings.configSyncAll)
+        state.proactiveReports    = ("true" == settings.configProactiveReports)
+
+        // Update Parameter target values:
+        getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
+            state."paramTarget${it.id}" = settings."configParam${it.id}"?.toInteger()
+        }
+
+        // Update Assoc Group target values:
+        state.assocGroupTarget1 = [ zwaveHubNodeId ] // Assoc Group #1 is Lifeline and will contain controller only.
+        getAssocGroupsMd().findAll( { it.id != 1} ).each {
+            state."assocGroupTarget${it.id}" = parseAssocGroupInput(settings."configAssocGroup${it.id}", it.maxNodes)
+        }
+
+
+        // Sync configuration with phyiscal device:
+        sync()
+
+        // Request device medadata (this just seems the best place to do it):
+        cmds << zwave.versionV1.versionGet()
+    	cmds << zwave.batteryV1.batteryGet().format()
+
+        return response(secureSequence(cmds))
+    }
+    else {
+        logger("updated(): Ran within last 2 seconds so aborting.","debug")
+    }
+}
+
+
+/*****************************************************************************************************************
+ *  Private Helper Functions:
+ *****************************************************************************************************************/
+
+private logger(msg, level = "debug") {
+    /**
+     *  Wrapper function for all logging:
+     *    Logs messages to the IDE (Live Logging), and also keeps a historical log of critical error and warning
+     *    messages by sending events for the device's logMessage attribute.
+     *    Configured using configLoggingLevelIDE and configLoggingLevelDevice preferences.
+     **/
+    switch(level) {
+        case "error":
+            if (state.loggingLevelIDE >= 1) log.error msg
+            if (state.loggingLevelDevice >= 1) sendEvent(name: "logMessage", value: "ERROR: ${msg}", displayed: false, isStateChange: true)
+            break
+
+        case "warn":
+            if (state.loggingLevelIDE >= 2) log.warn msg
+            if (state.loggingLevelDevice >= 2) sendEvent(name: "logMessage", value: "WARNING: ${msg}", displayed: false, isStateChange: true)
+            break
+
+        case "info":
+            if (state.loggingLevelIDE >= 3) log.info msg
+            break
+
+        case "debug":
+            if (state.loggingLevelIDE >= 4) log.debug msg
+            break
+
+        case "trace":
+            if (state.loggingLevelIDE >= 5) log.trace msg
+            break
+
+        default:
+            log.debug msg
+            break
+    }
+}
+
+private parseAssocGroupInput(string, maxNodes) {
+    /**
+     *  Converts a comma-delimited string of destinations (nodes and endpoints) into an array suitable for passing to
+     *  multiChannelAssociationSet(). All numbers are interpreted as hexadecimal. Anything that's not a valid node or
+     *  endpoint is discarded (warn). If the list has more than maxNodes, the extras are discarded (warn).
+     *
+     *  Example input strings:
+     *    "9,A1"      = Nodes: 9 & 161 (no multi-channel endpoints)            => Output: [9, 161]
+     *    "7,8:1,8:2" = Nodes: 7, Endpoints: Node8:endpoint1 & node8:endpoint2 => Output: [7, 0, 8, 1, 8, 2]
+     */
+    logger("parseAssocGroupInput(): Parsing Association Group Nodes: ${string}","trace")
+
+    // First split into nodes and endpoints. Count valid entries as we go.
+    if (string) {
+        def nodeList = string.split(',')
+        def nodes = []
+        def endpoints = []
+        def count = 0
+
+        nodeList = nodeList.each { node ->
+            node = node.trim()
+            if ( count >= maxNodes) {
+                logger("parseAssocGroupInput(): Number of nodes and endpoints is greater than ${maxNodes}! The following node was discarded: ${node}","warn")
+            }
+            else if (node.matches("\\p{XDigit}+")) { // There's only hexadecimal digits = nodeId
+                def nodeId = Integer.parseInt(node,16)  // Parse as hex
+                if ( (nodeId > 0) & (nodeId < 256) ) { // It's a valid nodeId
+                    nodes << nodeId
+                    count++
+                }
+                else {
+                    logger("parseAssocGroupInput(): Invalid nodeId: ${node}","warn")
+                }
+            }
+            else if (node.matches("\\p{XDigit}+:\\p{XDigit}+")) { // endpoint e.g. "0A:2"
+                def endpoint = node.split(":")
+                def nodeId = Integer.parseInt(endpoint[0],16) // Parse as hex
+                def endpointId = Integer.parseInt(endpoint[1],16) // Parse as hex
+                if ( (nodeId > 0) & (nodeId < 256) & (endpointId > 0) & (endpointId < 256) ) { // It's a valid endpoint
+                    endpoints.addAll([nodeId,endpointId])
+                    count++
+                }
+                else {
+                    logger("parseAssocGroupInput(): Invalid endpoint: ${node}","warn")
+                }
+            }
+            else {
+                logger("parseAssocGroupInput(): Invalid nodeId: ${node}","warn")
+            }
+        }
+
+        return (endpoints) ? nodes + [0] + endpoints : nodes
+    }
+    else {
+        return []
+    }
+}
+
+private sync(forceAll = false) {
+    /**
+     *  Manages synchronisation of parameters, association groups, and protection state with the physical device.
+     *  The syncPending attribute advertises remaining number of sync operations.
+     *
+     *  Does not return a list of commands, it sends them immediately using sendSecureSequence(). This is required if
+     *  triggered by schedule().
+     *
+     *  Parameters:
+     *   forceAll    Force all items to be synced, otherwise only changed items will be synced.
+     **/
+    logger("sync(): Syncing configuration with the physical device.","info")
+
+    def cmds = []
+    def syncPending = 0
+
+    if (forceAll) { // Clear all cached values.
+        getParamsMd().findAll( {!it.readonly} ).each { state."paramCache${it.id}" = null }
+        getAssocGroupsMd().each { state."assocGroupCache${it.id}" = null }
+        state.protectLocalCache = null
+        state.protectRFCache = null
+    }
+
+    getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
+        if ( (state."paramTarget${it.id}" != null) & (state."paramCache${it.id}" != state."paramTarget${it.id}") ) {
+            cmds << zwave.configurationV1.configurationSet(parameterNumber: it.id, size: it.size, scaledConfigurationValue: state."paramTarget${it.id}".toInteger())
+            cmds << zwave.configurationV1.configurationGet(parameterNumber: it.id)
+            logger("sync(): Syncing parameter #${it.id} [${it.name}]: New Value: " + state."paramTarget${it.id}","info")
+            syncPending++
+            }
+    }
+
+    getAssocGroupsMd().each {
+        def cachedNodes = state."assocGroupCache${it.id}"
+        def targetNodes = state."assocGroupTarget${it.id}"
+
+        if ( cachedNodes != targetNodes ) {
+            // Display to user in hex format (same as IDE):
+            def targetNodesHex  = []
+            targetNodes.each { targetNodesHex.add(String.format("%02X", it)) }
+            logger("sync(): Syncing Association Group #${it.id}: Destinations: ${targetNodesHex}","info")
+
+            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: it.id, nodeId: []) // Remove All
+            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: it.id, nodeId: targetNodes)
+            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: it.id)
+            syncPending++
+        }
+    }
+
+/* From fibaro dimmer
+    if ( (state.protectLocalTarget != null) & (state.protectRFTarget != null)
+      & ( (state.protectLocalCache != state.protectLocalTarget) || (state.protectRFCache != state.protectRFTarget) ) ) {
+
+        logger("sync(): Syncing Protection State: Local Protection: ${state.protectLocalTarget}, RF Protection: ${state.protectRFTarget}","info")
+        cmds << zwave.protectionV2.protectionSet(localProtectionState : state.protectLocalTarget, rfProtectionState: state.protectRFTarget)
+        cmds << zwave.protectionV2.protectionGet()
+        syncPending++
+    }
+*/
+    sendEvent(name: "syncPending", value: syncPending, displayed: false)
+    sendSecureSequence(cmds,1000) // Need a delay of at least 1000ms.
+}
+
+private refreshConfig() {
+    /**
+     *  Request configuration reports from the physical device: [ Configuration, Association, Protection,
+     *   SecuritySupportedCommands, Powerlevel, Manufacturer-Specific, Firmware Metadata, Version, etc. ]
+     *
+     *  Really only needed at installation or when debugging, as sync will request the necessary reports when the
+     *  configuration is changed.
+     */
+    logger("refreshConfig()","trace")
+
+    def cmds = []
+
+    getParamsMd().each { cmds << zwave.configurationV1.configurationGet(parameterNumber: it.id) }
+    getAssocGroupsMd().each { cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: it.id) }
+
+    cmds << zwave.protectionV2.protectionGet()
+    cmds << zwave.securityV1.securityCommandsSupportedGet()
+    cmds << zwave.manufacturerSpecificV2.manufacturerSpecificGet()
+    cmds << zwave.firmwareUpdateMdV2.firmwareMdGet()
+    cmds << zwave.versionV1.versionGet()
+    cmds << zwave.powerlevelV1.powerlevelGet()
+
+    sendSecureSequence(cmds, 1000) // Delay must be at least 1000 to reliabilty get all results processed.
+}
+
+private secure(physicalgraph.zwave.Command cmd) {
+    /**
+     *  Secures and formats a command using securityMessageEncapsulation.
+     *
+     *  Note: All commands are secured, there is little benefit to not securing commands that are not in
+     *  state.secureCommandClasses.
+     **/
+    //if ( state.secureCommandClasses.contains(cmd.commandClassId.toInteger()) ) {...
+    return zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
+}
+
+
+private secureSequence(commands, delay = 200) {
+    /**
+     *  Secure an array of commands. Returns a list of formatted commands.
+     **/
+    return delayBetween(commands.collect{ secure(it) }, delay)
+}
+
+private sendSecureSequence(commands, delay = 200) {
+    /**
+     *  Secure an array of commands and send them using sendHubCommand.
+     **/
+    sendHubCommand(commands.collect{ response(secure(it)) }, delay)
+}
+
+private generatePrefsParams() {
+    /**
+     *  Generates preferences (settings) for device parameters.
+     **/
+        section {
+            input (
+                type: "paragraph",
+                element: "paragraph",
+                title: "DEVICE PARAMETERS:",
+                description: "Device parameters are used to customise the physical device. " +
+                             "Refer to the product documentation for a full description of each parameter."
+            )
+
+    getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
+
+        def lb = (it.description.length() > 0) ? "\n" : ""
+
+        switch(it.type) {
+            case "number":
+            input (
+                name: "configParam${it.id}",
+                title: "#${it.id}: ${it.name}: \n" + it.description + lb +"Default Value: ${it.defaultValue}",
+                type: it.type,
+                range: it.range,
+                defaultValue: it.defaultValue, // iPhone users can uncomment these lines!
+                required: it.required
+            )
+            break
+
+            case "enum":
+            input (
+                name: "configParam${it.id}",
+                title: "#${it.id}: ${it.name}: \n" + it.description + lb + "Default Value: ${it.defaultValue}",
+                type: it.type,
+                options: it.options,
+                defaultValue: it.defaultValue, // iPhone users can uncomment these lines!
+                required: it.required
+            )
+            break
+        }
+    }
+        } // section
+}
+
+private generatePrefsAssocGroups() {
+    /**
+     *  Generates preferences (settings) for Association Groups.
+     **/
+    section {
+        input (
+                type: "paragraph",
+                element: "paragraph",
+                title: "ASSOCIATION GROUPS:",
+                description: "Association groups enable the dimmer to control other Z-Wave devices directly, " +
+                             "without participation of the main controller.\n" +
+                             "Enter a comma-delimited list of destinations (node IDs and/or endpoint IDs) for " +
+                             "each association group. All IDs must be in hexadecimal format. E.g.:\n" +
+                             "Node destinations: '11, 0F'\n" +
+                             "Endpoint destinations: '1C:1, 1C:2'"
+        )
+
+	getAssocGroupsMd().findAll( { it.id != 1} ).each { // Don't show AssocGroup1 (Lifeline).
+            input (
+                name: "configAssocGroup${it.id}",
+                title: "Association Group #${it.id}: ${it.name}: \n" + it.description + " \n[MAX NODES: ${it.maxNodes}]",
+                type: "text",
+                defaultValue: "", // iPhone users can uncomment these lines!
+                required: false
+            )
+        }
+    }
+}
+
+
+/*****************************************************************************************************************
  *  Static Matadata Functions:
  *
  *  These functions encapsulate metadata about the device. Mostly obtained from:
  *   Z-wave Alliance Reference for Fibaro Dimmer 2: http://products.z-wavealliance.org/products/1729
  *****************************************************************************************************************/
 
-/**
- *  getCommandClassVersions()
- *
- *  Returns a map of the command class versions supported by the device. Used by parse() and zwaveEvent() to
- *  extract encapsulated commands from MultiChannelCmdEncap, MultiInstanceCmdEncap, SecurityMessageEncapsulation,
- *  and Crc16Encap messages.
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/classes
- **/
 private getCommandClassVersions() {
+    /** 
+     *  Returns a map of the command class versions supported by the device. Used by parse() and zwaveEvent() to
+     *  extract encapsulated commands from MultiChannelCmdEncap, MultiInstanceCmdEncap, SecurityMessageEncapsulation,
+     *  and Crc16Encap messages.
+     *  Reference: http://products.z-wavealliance.org/products/1729/classes
+     **/
     return [0x20: 1, // Basic V1
-            0x22: 1, // Application Status V1
-            0x26: 3, // Switch Multilevel V3
-            // xx 0x27: 1, // Switch All V1
-            0x28: 1, // Switch Toggle Binary
-/*            0x2B: 1, // Scene Activation V1
-            0x31: 4, // Sensor Multilevel V4
-            0x32: 3, // Meter V3
-            0x56: 1, // CRC16 Encapsulation V1
-*/
+            //0x22: 1, // Application Status V1
+            //0x26: 3, // Switch Multilevel V3
+            //0x27: 1, // Switch All V1
+            //0x28: 1, // Switch Toggle Binary
+            //0x2B: 1, // Scene Activation V1
+            //0x31: 4, // Sensor Multilevel V4
+            //0x32: 3, // Meter V3
+            //0x56: 1, // CRC16 Encapsulation V1
             0x59: 1, // Association Group Information V1
             0x5A: 1, // Device Reset Locally V1
             0x5B: 1, // Central Scene
@@ -460,37 +917,25 @@ private getCommandClassVersions() {
             0x73: 1, // Powerlevel V1
             // xx 0x75: 2, // Protection V2
             0x7A: 2, // Firmware Update MD V3 (Device supports V3, but SmartThings only supports V2)
+            0x80: 1, // Battery
             0x85: 2, // Association V2
             0x86: 1, // Version V2 (Device supports V2, but SmartThings only supports V1)
             0x8E: 2, // Multi Channel Association V3 (Device supports V3, but SmartThings only supports V2)
-            // xx 0x98: 1  // Security V1
+            //0x98: 1  // Security V1
            ]
 }
 
-/**
- *  getParamsMd()
- *
- *  Returns device parameters metadata. Used by sync(), updateSyncPending(),  and generatePrefsParams().
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/configs
- **/
 private getParamsMd() {
+    /** 
+     *  Returns device parameters metadata. Used by sync(), updateSyncPending(),  and generatePrefsParams().
+     *  Reference: http://products.z-wavealliance.org/products/1729/configs
+     **/
     return [
-        [id: 1, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
-         name: "Upper paddle buttons mode",
-         description : "Configuration of Pair Mode for the upper two buttons (button #1 and #2)",
-         options: ["0" : "0: Separate mode (toggle mode). (Default)",
-                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
-        [id: 2, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
-         name: "Middle paddle buttons mode",
-         description : "Configuration of Pair Mode for the upper two buttons (button #3 and #4)",
-         options: ["0" : "0: Separate mode (toggle mode). (Default)",
-                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
         [id: 3, size: 1, type: "enum", defaultValue: "0", required: false, readonly: false,
-         name: "Lower paddle buttons mode",
-         description : "Configuration of Pair Mode for the upper two buttons (button #5 and #6)",
-         options: ["0" : "0: Separate mode (toggle mode). (Default)",
-                   "1" : "1: In pair mode, left side sends on/up commands, right side sends off/down commands"]],
+         name: "Configuration parameter 3",
+         description : "Configuration parameter 3",
+         options: ["0" : "0: Do not know what this does. (Default)",
+                   ]],
 
 
 /*
@@ -506,14 +951,11 @@ private getParamsMd() {
     ]
 }
 
-/**
- *  getAssocGroupsMd()
- *
- *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
- *
- *  Reference: http://products.z-wavealliance.org/products/1729/assoc
- **/
 private getAssocGroupsMd() {
+    /** 
+     *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
+     *  Reference: http://products.z-wavealliance.org/products/1729/assoc
+     **/
     return [
         [id:  1, maxNodes: 1, name: "Lifeline",
          description : "Reports device state. Main Z-Wave controller should be added to this group."],
