@@ -614,9 +614,15 @@ private sync(forceAll = false) {
             targetNodes.each { targetNodesHex.add(String.format("%02X", it)) }
             logger("sync(): Syncing Association Group #${it.id}: Destinations: ${targetNodesHex}","info")
 
-            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: it.id, nodeId: []) // Remove All
-            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: it.id, nodeId: targetNodes)
-            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: it.id)
+//            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: it.id, nodeId: []) // Remove All
+//            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: it.id, nodeId: targetNodes)
+//            cmds << zwave.multiChannelAssociationV2.multiChannelAssociationGet(groupingIdentifier: it.id)
+            
+		    cmds << zwave.associationV2.associationRemove(groupingIdentifier: it.id, nodeId: []) //.format()
+			if (targetNodes) {
+				cmds << zwave.associationV1.associationSet(groupingIdentifier:it.id, nodeId: targetNodes) //.format()
+                logger("Added association group ${it.id} nodes: ${targetNodesHex} = ${targetNodes}")
+            }
             syncPending++
         }
     }
@@ -1030,7 +1036,7 @@ private getAssocGroupsMd() {
          description : "Send Binary Toggle Switch Set when button #3 is used."],
         [id: 16, maxNodes: 5, name: "Multilevel Start Stop (B3)",
          description : "Sends Multilevel Switch Set / Multilevel Switch Start Level Change / Multilevel Switch Stop Level Change when button #3 is used."],
-
+/*
 		[id: 17, maxNodes: 5, name: "Basic Report On/Off (B4)",
          description : "Send Basic Report (On/Off) when button #4 is used."],
         [id: 18, maxNodes: 5, name: "Basic Set On/Off (B4)",
@@ -1063,6 +1069,6 @@ private getAssocGroupsMd() {
          description : "Send Binary Toggle Switch Set when button #6 is used."],
         [id: 31, maxNodes: 5, name: "Multilevel Start Stop (B6)",
          description : "Sends Multilevel Switch Set / Multilevel Switch Start Level Change / Multilevel Switch Stop Level Change when button #6 is used."],
-		 
+*/		 
 	]
 }

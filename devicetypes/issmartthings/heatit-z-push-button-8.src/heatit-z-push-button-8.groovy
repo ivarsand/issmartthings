@@ -381,7 +381,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelS
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
-	log.debug "Multilevel Stop CHange: $cmd"
+	log.debug "Multilevel Stop Change: $cmd"
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
@@ -422,10 +422,7 @@ def zwaveEvent(physicalgraph.zwave.commands.associationv2.AssociationReport cmd)
 
 def zwaveEvent(physicalgraph.zwave.commands.sceneactivationv1.SceneActivationSet cmd) {
 	// log.debug( "Dimming Duration: $cmd.dimmingDuration")
-    // log.debug( "Button code: $cmd.sceneId")
-   
-    
-    
+    // log.debug( "Button code: $cmd.sceneId")    
 }
 
 /*****************************************************************************************************************
@@ -582,7 +579,7 @@ def installed() {
     log.trace "installed()"
 
     state.installedAt = now()
-    state.loggingLevelIDE     = 3
+    state.loggingLevelIDE     = 5
     state.loggingLevelDevice  = 2
     state.protectLocalTarget  = 0
     state.protectRFTarget     = 0
@@ -629,10 +626,10 @@ def updated() {
 
         // Sync configuration with phyiscal device:
         sync()
-
+ 
         // Request device medadata (this just seems the best place to do it):
         cmds << zwave.versionV1.versionGet()
-    	cmds << zwave.batteryV1.batteryGet().format()
+    	cmds << zwave.batteryV1.batteryGet() //.format()
 
         return response(secureSequence(cmds))
     }
@@ -839,6 +836,19 @@ private secure(physicalgraph.zwave.Command cmd) {
     return zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
 }
 
+private secure(str) {
+    /**
+     *  Secures and formats a command using securityMessageEncapsulation.
+     *
+     *  Note: All commands are secured, there is little benefit to not securing commands that are not in
+     *  state.secureCommandClasses.
+     **/
+    //if ( state.secureCommandClasses.contains(cmd.commandClassId.toInteger()) ) {...
+    //return zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
+    logger("secure(): ${str}", "info")
+    return
+}
+
 
 private secureSequence(commands, delay = 200) {
     /**
@@ -950,12 +960,14 @@ private getCommandClassVersions() {
             //0x2B: 1, // Scene Activation V1
             //0x31: 4, // Sensor Multilevel V4
             //0x32: 3, // Meter V3
+            0x55: 1, // Transport Service
             //0x56: 1, // CRC16 Encapsulation V1
             0x59: 1, // Association Group Information V1
             0x5A: 1, // Device Reset Locally V1
             0x5B: 1, // Central Scene
             //0x5E: 2, // Z-Wave Plus Info V2 (Not supported by SmartThings)
             0x60: 3, // Multi Channel V4 (Device supports V4, but SmartThings only supports V3)
+            0x6C: 1, // Supervision
             0x70: 1, // Configuration V1
             // xx 0x71: 3, // Notification V5 ((Device supports V5, but SmartThings only supports V3)
             0x72: 2, // Manufacturer Specific V2
@@ -963,10 +975,12 @@ private getCommandClassVersions() {
             // xx 0x75: 2, // Protection V2
             0x7A: 2, // Firmware Update MD V3 (Device supports V3, but SmartThings only supports V2)
             0x80: 1, // Battery
+            0x84: 1, // Wake Up
             0x85: 2, // Association V2
             0x86: 1, // Version V2 (Device supports V2, but SmartThings only supports V1)
             0x8E: 2, // Multi Channel Association V3 (Device supports V3, but SmartThings only supports V2)
-            //0x98: 1  // Security V1
+            0x98: 1, // Security V1
+            0x9F: 1  // Security 2 V1            
            ]
 }
 
