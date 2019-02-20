@@ -27,17 +27,17 @@ metadata {
         attribute "sequenceNumber", "number"
         attribute "numberOfButtons", "number"
 
-        command "push1"
+        command "pushOn1"
         command "hold1"
-        command "push2"
+        command "pushOn2"
         command "hold2"
-        command "push3"
+        command "pushOn3"
         command "hold3"
-        command "push4"
+        command "pushOn4"
         command "hold4"
-        command "push5"
+        command "pushOn5"
         command "hold5"
-        command "push6"
+        command "pushOn6"
         command "hold6"
 
         fingerprint mfr: "0234", prod: "0003", model: "010C"
@@ -73,6 +73,8 @@ metadata {
 	}
     
 	tiles (scale: 2) {
+    	def tileList = []
+		tileList << "switch"
 		multiAttributeTile(name:"switch", type: "generic", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute("device.switch", key: "PRIMARY_CONTROL") {
 				attributeState("on", label: '${name}', action: "switch.off", icon: "st.switches.switch.on", backgroundColor: "#00a0dc")
@@ -80,12 +82,29 @@ metadata {
 			}
 		}
 
-
-		standardTile("B1", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: "Button 1", icon: "st.unknown.zwave.remote-controller"
+    	(1..3).each { btn ->
+        	def index = btn * 3 - 3
+            def curbtn = btn * 2 - 1
+            tileList << "B${curbtn}.on".toString()
+        	tileList << "B${curbtn}.hold".toString()
+            tileList << "B${curbtn + 1}.on".toString()
+            valueTile(tileList[index + 1], "device.button", width: 2, height: 2, decoration: "flat") {
+				state "default", label: 'I', action: "pushOn${curbtn}"
+            }
+        	standardTile(tileList[index + 2], "device.button", width: 2, height: 2) {
+				state "default", label: "${btn}"
+            }
+            valueTile(tileList[index + 3], "device.button", width: 2, height: 2, decoration: "flat") {
+				state "default", label: 'O', action: "pushOn${curbtn + 1}"
+            }
 		}
+
+/*
 		standardTile("B1.push", "device.button", inactiveLabel: false ,  width: 2, height: 2, decoration: "flat") {
 			state "on", label: "Push", action: "push1", icon: "st.unknown.zwave.remote-controller"
+		}
+		standardTile("B1", "device.button", width: 2, height: 2, decoration: "flat") {
+			state "default", label: "Button 1", icon: "st.unknown.zwave.remote-controller"
 		}
 		standardTile("B1.hold", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "off", label: "Hold", action:"hold1", icon: "st.unknown.zwave.remote-controller"
@@ -141,14 +160,16 @@ metadata {
 		standardTile("B6.hold", "device.button", width: 2, height: 2, decoration: "flat") {
 			state "default", label: 'Hold', action: "hold6", icon: "st.unknown.zwave.remote-controller"
 		}
-		
-standardTile("configure", "device.configure", inactiveLabel: false, width: 1, height: 1, decoration: "flat") {
+*/		
+		tileList << "configure"
+		standardTile("configure", "device.configure", inactiveLabel: false, width: 1, height: 1, decoration: "flat") {
 			state "configure", label:'', action:"configuration.configure", icon:"st.secondary.configure"
 		}
-		main "switch"
-		details(["switch", "B1", "B1.push",  "B1.hold", "B2", "B2.push",  "B2.hold",
-                 "B3", "B3.push",  "B3.hold", "B4", "B4.push",  "B4.hold",
-                 "B5", "B5.push",  "B5.hold", "B6", "B6.push",  "B6.hold", "configure"])
+//		details(["switch", "B1", "B1.push",  "B1.hold", "B2", "B2.push",  "B2.hold",
+//                 "B3", "B3.push",  "B3.hold", "B4", "B4.push",  "B4.hold",
+//                 "B5", "B5.push",  "B5.hold", "B6", "B6.push",  "B6.hold", "configure"])
+        main(tileList.take(1))
+		details(tileList)
 	}
 
     preferences {
@@ -358,23 +379,23 @@ def holdEvent(button, value) {
     sendEvent(name: "button", value: "held", data: [buttonNumber: button, action: "held"], source: "COMMAND", descriptionText: "$device.displayName button $button was held", isStateChange: true)
 }
 
-def push1() {
+def pushOn1() {
 	logger("Push1()", "info")
 	pushEvent(1, "pushed")
 }
-def push2() {
+def pushOn2() {
 	pushEvent(2, "pushed")
 }
-def push3() {
+def pushOn3() {
 	pushEvent(3, "pushed")
 }
-def push4() {
+def pushOn4() {
 	pushEvent(4, "pushed")
 }
-def push5() {
+def pushOn5() {
 	pushEvent(5, "pushed")
 }
-def push6() {
+def pushOn6() {
 	pushEvent(6, "pushed")
 }
 def hold1() {
@@ -711,6 +732,15 @@ private generatePrefsParams() {
 
     getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
 
+		if (it.id == 27) {
+            input (
+                type: "paragraph",
+                element: "paragraph",
+                title: "NEXT PARAMETERS ADD VALUES FOR NON SECURE:",
+                description: "0: No non-secure, 1: Not used, 2: Basic Report, 4: Basic Set, 8: Binary Switch Set, 16: Binary Toggle Switch Set, 32: Multilevel Switch commands. " +
+                			 "62 means all unsecure."
+            )
+        }
         def lb = (it.description.length() > 0) ? "\n" : ""
 
         switch(it.type) {
@@ -981,16 +1011,30 @@ private getParamsMd() {
 		 options: ["0" : "0: Basic Set commands to endpoint 0 is forwarded to endpoint 1 (Default)",
 		           "1" : "1: Basic Set commands to endpoint 0 controls backlight (on/off)."]],
 
-/*
-        [id:  1, size: 1, type: "number", range: "1..98", defaultValue: 1, required: false, readonly: false,
-         name: "Minimum Brightness Level",
-         description: "Set automatically during the calibration process, but can be changed afterwards.\n" +
-         "Values: 1-98 = Brightness level (%)"],
-*/
-
-
-
-
+        [id: 27, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
+        [id: 28, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
+        [id: 29, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
+        [id: 30, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
+        [id: 31, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
+        [id: 32, size: 1, type: "number", defaultValue: "0", required: false, readonly: false,
+         name: "Logical Device 1. Non-secure commands",
+         description : "Add all types to one number." +
+		           	   " 0 = none. 62 = All non-secure."],
     ]
 }
 
@@ -1036,7 +1080,7 @@ private getAssocGroupsMd() {
          description : "Send Binary Toggle Switch Set when button #3 is used."],
         [id: 16, maxNodes: 5, name: "Multilevel Start Stop (B3)",
          description : "Sends Multilevel Switch Set / Multilevel Switch Start Level Change / Multilevel Switch Stop Level Change when button #3 is used."],
-/*
+
 		[id: 17, maxNodes: 5, name: "Basic Report On/Off (B4)",
          description : "Send Basic Report (On/Off) when button #4 is used."],
         [id: 18, maxNodes: 5, name: "Basic Set On/Off (B4)",
@@ -1069,6 +1113,6 @@ private getAssocGroupsMd() {
          description : "Send Binary Toggle Switch Set when button #6 is used."],
         [id: 31, maxNodes: 5, name: "Multilevel Start Stop (B6)",
          description : "Sends Multilevel Switch Set / Multilevel Switch Start Level Change / Multilevel Switch Stop Level Change when button #6 is used."],
-*/		 
+		 
 	]
 }
