@@ -20,12 +20,6 @@
  */
  
 
-/*    
-def updated() {
-	if (settings.tempSen == null) settings.tempSen = "A - Room temperature mode"
-    configure()
-}
-*/ 
 metadata {
 	definition (name: "HeatIt Z-Wave Thermostat", namespace: "issmartthings", author: "ivarsand") {
 		capability "Actuator"
@@ -95,43 +89,39 @@ metadata {
 
 	tiles (scale: 2){
 		
-        	multiAttributeTile(name:"thermostatMulti", type:"thermostat", width:6, height:4) {
+        multiAttributeTile(name:"thermostatMulti", type:"thermostat", width:6, height:4) {
   			tileAttribute("device.temperature", key: "PRIMARY_CONTROL") {
-    		attributeState("default", label:'${currentValue}°', unit:"C", action:"switchMode", icon:"st.Home.home1")
-  		}
+    			attributeState("default", label:'${currentValue}°', unit:"C", action:"switchMode", icon:"st.Home.home1")
+  			}
   			     
 		/*	tileAttribute("device.heatingSetpoint", key: "VALUE_CONTROL") {
 			attributeState "heat", action:"quickSetHeat"
         }
         */    
             tileAttribute("device.heatingSetpoint", key: "VALUE_CONTROL") {
-    		attributeState("VALUE_UP", action: "pressUp")
-    		attributeState("VALUE_DOWN", action: "pressDown")
-  		}
-  			//tileAttribute("device.heatingSetpoint", key: "SECONDARY_CONTROL") {
-            tileAttribute("device.tempSenseMode", key: "SECONDARY_CONTROL") {
-    		attributeState("default", label:'${currentValue}', unit:"", icon:" ")
-  			//attributeState("default", label:'${currentValue}°', unit:"°", icon:"st.Weather.weather2")
-        
-        }
+    			attributeState("VALUE_UP", action: "pressUp")
+    			attributeState("VALUE_DOWN", action: "pressDown")
+  			}
+                //tileAttribute("device.heatingSetpoint", key: "SECONDARY_CONTROL") {
+                tileAttribute("device.tempSenseMode", key: "SECONDARY_CONTROL") {
+                attributeState("default", label:'${currentValue}', unit:"", icon:" ")
+                //attributeState("default", label:'${currentValue}°', unit:"°", icon:"st.Weather.weather2")        
+	        }
   			tileAttribute("device.thermostatOperatingState", key: "OPERATING_STATE") {
-    		attributeState("idle", backgroundColor:"#44b621")
-  			attributeState("heating", backgroundColor:"#bc2323")
-            attributeState("energySaveHeat", backgroundColor:"#ffa81e")
-  		}
+                attributeState("idle", backgroundColor:"#44b621")
+                attributeState("heating", backgroundColor:"#bc2323")
+                attributeState("energySaveHeat", backgroundColor:"#ffa81e")
+            }
   			tileAttribute("device.thermostatMode", key: "THERMOSTAT_MODE") {
-    		attributeState("off", label:'${name}', action:"switchMode", nextState:"heat")
-    		attributeState("heat", label:'${name}', action:"switchMode", nextState:"energy")
-            attributeState("energySaveHeat", label:'${name}', action:"switchMode", nextState:"off")
-
-  		}
+                attributeState("off", label:'${name}', action:"switchMode", nextState:"heat")
+                attributeState("heat", label:'${name}', action:"switchMode", nextState:"energy")
+                attributeState("energySaveHeat", label:'${name}', action:"switchMode", nextState:"off")
+  			}
             tileAttribute("device.heatingSetpoint", key: "HEATING_SETPOINT") {
-    		attributeState("default", label:'${currentValue}')
-  		}
-
+                attributeState("default", label:'${currentValue}')
+            }
+		} // multiAttributeTile
         
-
-}
         /*
         valueTile("temperature", "device.temperature", width: 2, height: 2) {
 			state("temperature", label:'${currentValue}°',
@@ -149,8 +139,9 @@ metadata {
 		
         */
         
+        /*
         valueTile("mode", "device.thermostatMode", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-			state "off", label:'${name}', action:"switchMode", nextState:"to_heat"
+			state "off", label:'${name}', action:"switchMode", nextState:"heat"
 			state "heat", label:'${name}', action:"switchMode", nextState:"energySaveHeat"
 			//state "cool", label:'${name}', action:"switchMode", nextState:"..."
 			// state "auto", label:'${name}', action:"switchMode", nextState:"energySaveHeat"
@@ -159,7 +150,6 @@ metadata {
 			//state "to_cool", label: "cool", action:"switchMode", nextState:"..."
 			state "energySaveHeat", label: "eco heat", action:"switchMode", nextState:"off"
 		}
-        /*
 		standardTile("fanMode", "device.thermostatFanMode", inactiveLabel: false, decoration: "flat") {
 			state "fanAuto", label:'${name}', action:"switchFanMode"
 			state "fanOn", label:'${name}', action:"switchFanMode"
@@ -204,56 +194,56 @@ metadata {
 		}
         */
         
-		standardTile("refresh", "device.thermostatMode", inactiveLabel: false, decoration: "flat", height: 2, width: 2) {
-			state "default", action:"polling.poll", icon:"st.secondary.refresh"
-		}
-		standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat", height: 2, width: 2) {
-			state "configure", label:'', action:"configuration.configure", icon:"st.secondary.configure"
-		}
+        standardTile("refresh", "device.thermostatMode", inactiveLabel: false, decoration: "flat", height: 2, width: 2) {
+            state "default", action:"polling.poll", icon:"st.secondary.refresh"
+        }
+        standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat", height: 2, width: 2) {
+            state "configure", label:'', action:"configuration.configure", icon:"st.secondary.configure"
+        }
         
 		main "thermostatMulti"
 		//details(["thermostatMulti", "mode", "heatLabel", "heatSliderControl", "refresh", "ecoLabel", "ecoheatSliderControl", "configure"])
 		details(["thermostatMulti", "setHeat", "setEcoHeat", "setOff", "refresh", "heatLabel", "heatSliderControl", "configure", "ecoLabel", "ecoheatSliderControl"])
 	}
 
- preferences {
+ 	preferences {
             
-            def myOptions = ["F - Floor temperature mode", "A - Room temperature mode", "AF - Room mode w/floor limitations", "A2 - Room temperature mode (external)", "P - Power regulator mode", "FP - Floor mode with minimum power limitation"]
-			input "tempSen", 
+        def myOptions = ["F - Floor temperature mode", "A - Room temperature mode", "AF - Room mode w/floor limitations", "A2 - Room temperature mode (external)", "P - Power regulator mode", "FP - Floor mode with minimum power limitation"]
+        input "tempSen", 
             "enum", 
             title: "Select Temperature Sensor Mode",
-           // description: "F - Floor mode: Regulation is based on the floor temperature sensor reading \nA - Room temperature mode: Regulation is based on the measured room temperature using the internal sensor (Default) \nAF - Room mode w/floor limitations: Regulation is based on internal room sensor but limited by the floor temperature sensor (included) ensuring that the floor temperature stays within the given limits (FLo/FHi) \nA2 - Room temperature mode: Regulation is based on the measured room temperature using the external sensor \nP (Power regulator): Constant heating power is supplied to the floor. Power rating is selectable in 10% increments ( 0% - 100%) \nFP - Floor mode with minimum power limitation: Regulation is based on the floor temperature sensor reading, but will always heat with a minimum power setting (PLo)",
-           	defaultValue: "A - Room temperature mode",
+            // description: "F - Floor mode: Regulation is based on the floor temperature sensor reading \nA - Room temperature mode: Regulation is based on the measured room temperature using the internal sensor (Default) \nAF - Room mode w/floor limitations: Regulation is based on internal room sensor but limited by the floor temperature sensor (included) ensuring that the floor temperature stays within the given limits (FLo/FHi) \nA2 - Room temperature mode: Regulation is based on the measured room temperature using the external sensor \nP (Power regulator): Constant heating power is supplied to the floor. Power rating is selectable in 10% increments ( 0% - 100%) \nFP - Floor mode with minimum power limitation: Regulation is based on the floor temperature sensor reading, but will always heat with a minimum power setting (PLo)",
+            defaultValue: "A - Room temperature mode",
             required: true, 
             options: myOptions, 
             displayDuringSetup: false
             
-            input title: "Explanation:", 
+        input title: "Explanation:", 
             description: "F - Floor mode: Regulation is based on the floor temperature sensor reading \nA - Room temperature mode: Regulation is based on the measured room temperature using the internal sensor (Default) \nAF - Room mode w/floor limitations: Regulation is based on internal room sensor but limited by the floor temperature sensor (included) ensuring that the floor temperature stays within the given limits (FLo/FHi) \nA2 - Room temperature mode: Regulation is based on the measured room temperature using the external sensor \nP (Power regulator): Constant heating power is supplied to the floor. Power rating is selectable in 10% increments ( 0% - 100%) \nFP - Floor mode with minimum power limitation: Regulation is based on the floor temperature sensor reading, but will always heat with a minimum power setting (PLo)", 
             displayDuringSetup: false, 
             type: "paragraph", 
             element: "paragraph"
             
-            input "FLo",
-        	"number",
+        input "FLo",
+            "number",
             range: "5..40",
             title: "FLo: Floor min limit",
             description: "Minimum Limit for floor sensor (5°-40°)",
-			defaultValue: 5,
-			required: false,
+            defaultValue: 5,
+            required: false,
             displayDuringSetup: false
             
-            input "FHi",
-        	"number",
+        input "FHi",
+            "number",
             range: "5..40",
             title: "FHi: Floor max limit",
             description: "Maximum Limit for floor sensor  (5°-40°)",
-			defaultValue: 40,
-			required: false,
+            defaultValue: 40,
+            required: false,
             displayDuringSetup: false
             
-            def sensOptions = ["10k ntc (Default)", "12k ntc", "15k ntc", "22k ntc", "33k ntc", "47k ntc"]
-			input "sensorType", 
+        def sensOptions = ["10k ntc (Default)", "12k ntc", "15k ntc", "22k ntc", "33k ntc", "47k ntc"]
+        input "sensorType", 
             "enum", 
             title: "Select Floor Sensor Type",
             //description: "",
@@ -262,45 +252,45 @@ metadata {
             options: sensOptions, 
             displayDuringSetup: false
             
-            input "ALo",
-        	"number",
+        input "ALo",
+            "number",
             range: "5..40",
             title: "ALo: Air min limit",
             description: "Minimum Limit for Air sensor (5°-40°)",
-			defaultValue: 5,
-			required: false,
+            defaultValue: 5,
+            required: false,
             displayDuringSetup: false
-            
-            input "AHi",
-        	"number",
+
+        input "AHi",
+            "number",
             range: "5..40",
             title: "AHi: Air max limit",
             description: "Maximum Limit for Air sensor  (5°-40°)",
-			defaultValue: 40,
-			required: false,
+            defaultValue: 40,
+            required: false,
             displayDuringSetup: false
-            
-            input "PLo",
-        	"number",
+
+        input "PLo",
+            "number",
             range: "0..9",
             title: "PLo: FP-mode P setting",
             description: "FP-mode P setting (0 - 9)",
-			defaultValue: 0,
-			required: false,
+            defaultValue: 0,
+            required: false,
             displayDuringSetup: false
-            
-            def pOptions = ["0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"]
-            input "PSet",
-        	"enum",
+
+        def pOptions = ["0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"]
+        input "PSet",
+            "enum",
             //range: "0..100",
             title: "PSetting",
             description: "Power Regulator setting (0 - 100%)",
-			defaultValue: "20%",
-			required: false,
+            defaultValue: "20%",
+            required: false,
             options: pOptions,
             displayDuringSetup: false
-           
-}
+
+    }
 }
 
 def parse(String description) {
@@ -1020,6 +1010,11 @@ def configure() {
     
 }
 
+def updated() {
+	if (settings.tempSen == null) settings.tempSen = "A - Room temperature mode"
+    configure()
+}
+
 def modes() {
 	["off", "heat", "energySaveHeat"]
 }
@@ -1083,10 +1078,7 @@ def switchMode() {
         poll()
 	], 650)
     }
-    
-
-
-	
+    	
 	//state.lastTriedMode = nextMode
 
 /*    
@@ -1172,8 +1164,7 @@ def off() {
         sendEvent(name: "thermostatMode", value: "off"),
         sendEvent(name: "thermostatOperatingState", value: "idle"),
         poll()
-	], 650)
-    	
+	], 650)	
 }
 
 def heat() {
