@@ -15,6 +15,7 @@
  *  Author: IvarS
  *  Date: 2019-02-09
  *
+ * Parts of code based on fibaro dimmer 2 device handler from David Lomas (codersaur)
  */
  
 metadata {
