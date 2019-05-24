@@ -184,7 +184,7 @@ def parse(String description) {
 		}
         if ( !state.numberOfButtons ) {
     	state.numberOfButtons = "8"
-        createEvent(name: "numberOfButtons", value: "8", displayed: false)
+        sendEvent(name: "numberOfButtons", value: "8", displayed: false)
 		updateStatus()
   		}
     }
@@ -470,6 +470,7 @@ def configure() {
     cmds << zwave.configurationV1.configurationSet(parameterNumber: 0x03, size: 1, configurationValue: [0]).format()
     cmds << zwave.batteryV1.batteryGet().format()
     delayBetween(cmds, 500)
+    
 }
 
 def describeAttributes(payload) {
