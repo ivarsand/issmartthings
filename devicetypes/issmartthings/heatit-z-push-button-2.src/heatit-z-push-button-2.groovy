@@ -16,10 +16,11 @@
  *  Date: 2019-02-09
  *
  * Parts of code based on fibaro dimmer 2 device handler from David Lomas (codersaur)
+ *
  */
  
 metadata {
-	definition (name: "HeatIt Z-Push Button 8", namespace: "issmartthings", author: "ivarsand") {
+	definition (name: "HeatIt Z-Push Button 2", namespace: "issmartthings", author: "ivarsand") {
 		capability "Actuator"
 		capability "Button"
         capability "Battery"
@@ -43,7 +44,9 @@ metadata {
         attribute "button", "enum", ["pushed", "held", "double clicked", "click held"]
         attribute "needUpdate", "string"
 
-		fingerprint mfr: "0330", prod: "0300", model: "A305", deviceJoinName: "HeatIt Z-Push Button 8" 
+		//fingerprint deviceId: "0x1202", inClusters: "0x5E, 0x85, 0x8E, 0x70, 0x5B, 0x59, 0x55, 0x86, 0x72, 0x5A, 0x73, 0x80, 0x98, 0x9F, 0x84, 0x6C", outClusters: "0x26"
+		//fingerprint mfr: "0330", prod: "0300", model: "A305", deviceJoinName: "HeatIt Z-Push Button 8"
+		fingerprint mfr:"019B", prod:"0300", model:"A307", deviceJoinName: "HeatIt Z-Push Button 2"
    }
 
 	simulator {
@@ -83,8 +86,7 @@ metadata {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-		def buttonRows = 4  // Try 8 button if state.numberOfRows undefined
-    	(1..buttonRows).each { btn ->
+    	(1..1).each { btn ->
         	def index = btn * 3 - 3
             tileList << "B${btn}.on".toString()
         	tileList << "B${btn}.space".toString()
@@ -100,22 +102,6 @@ metadata {
             }
 		}
 
-
-/*
-		valueTile("B1.on", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'I', action: "pushOn1"
-		}
-		standardTile("B1.space", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: '1'
-		}
-		valueTile("B1.off", "device.button", width: 2, height: 2, decoration: "flat") {
-			state "default", label: 'O', action: "pushOff1"
-		}
-*/        
-
-//        main "button"
-//		details(["button", "battery", "configure", "statusText2", "refresh"])
-//		details(["button", "configure", "statusText2", "refresh", "B1.on", "B1.space", "B1.off"])
         main(tileList.take(1))
 		details(tileList)
 
@@ -451,28 +437,20 @@ def refreshOLD() {
 }
 
 def configure() {
-    
- 
     def commands = [ ]
 			log.debug "Resetting Sensor Parameters to SmartThings Compatible Defaults"
 	def cmds = []
     cmds << zwave.associationV2.associationSet(groupingIdentifier: 1, nodeId: zwaveHubNodeId).format()
     cmds << zwave.associationV2.associationSet(groupingIdentifier: 2, nodeId: zwaveHubNodeId).format()
-    if (state.numberOfButtons > 2) {
-    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()
-    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 4, nodeId: zwaveHubNodeId).format()
-    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 5, nodeId: zwaveHubNodeId).format()
-    }
     cmds << zwave.wakeUpV2.wakeUpIntervalSet(seconds:86400, nodeid:zwaveHubNodeId).format()
     cmds << zwave.configurationV1.configurationSet(parameterNumber: 0x03, size: 1, configurationValue: [0]).format()
     cmds << zwave.batteryV1.batteryGet().format()
     delayBetween(cmds, 500)
-    
-    // Setting number of buttons
-    if ( !state.numberOfButtons ) {
-    	state.numberOfButtons = "8"
-  	}    
-    sendEvent(name: "numberOfButtons", value: "$state.numberOfButtons", displayed: true)
+
+	if ( !state.numberOfButtons ) {
+    	state.numberOfButtons = "2"
+  	}
+    sendEvent(name: "numberOfButtons", value: "$state.numberOfButtons", displayed: false)
 }
 
 def describeAttributes(payload) {
@@ -541,7 +519,6 @@ def pushed(int button, int action) {
 
 	sendEvent(name: "button", value: "$motionDescription", data: [buttonNumber: button, action: "$motion"], source: "COMMAND", descriptionText: "$device.displayName button $button was $motionDescription")
     sendEvent(name: "Button Events", value: "#$button $motionDescription" as String, descriptionText: "$device.displayName button $button was $motionDescription", isStateChange: true)
-
 }
 
 def pushOn1() {
@@ -589,7 +566,6 @@ def installed() {
     state.loggingLevelDevice  = 2
     state.protectLocalTarget  = 0
     state.protectRFTarget     = 0
-    state.numberOfButtons     = 8
 
     //sendEvent(name: "fault", value: "clear", descriptionText: "Fault cleared", displayed: false)
 
@@ -1003,17 +979,6 @@ private getParamsMd() {
          options: ["0" : "0: Do not know what this does. (Default)",
                    ]],
 
-
-/*
-        [id:  1, size: 1, type: "number", range: "1..98", defaultValue: 1, required: false, readonly: false,
-         name: "Minimum Brightness Level",
-         description: "Set automatically during the calibration process, but can be changed afterwards.\n" +
-         "Values: 1-98 = Brightness level (%)"],
-*/
-
-
-
-
     ]
 }
 
@@ -1022,38 +987,11 @@ private getAssocGroupsMd() {
      *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
      *  Reference: http://products.z-wavealliance.org/products/1729/assoc
      **/
-        return [
-            [id:  1, maxNodes: 1, name: "Lifeline",
-             description : "Reports device state. Main Z-Wave controller should be added to this group."],
+    return [
+        [id:  1, maxNodes: 1, name: "Lifeline",
+         description : "Reports device state. Main Z-Wave controller should be added to this group."],
 
-            [id:  2, maxNodes: 5, name: "Upper row buttons association",
-             description : "Send On/Off, dim Up/Down when row 1 is used."],
-            [id:  3, maxNodes: 5, name: "Second row buttons association",
-             description : "Send On/Off, dim Up/Down when row 2 is used."],
-            [id:  4, maxNodes: 5, name: "Third row buttons association",
-             description : "Send On/Off, dim Up/Down when row 3 is used."],
-            [id:  5, maxNodes: 5, name: "Bottom row buttons association",
-             description : "Send On/Off, dim Up/Down when row 4 is used."],
-        ]
+		[id:  2, maxNodes: 5, name: "Upper row buttons association",
+         description : "Send On/Off, dim Up/Down when row 1 is used."],
+	]
 }
-
-/*
-// Correct configure for dim events:
-
-    for (def i = 11; i <= 12; i++) {
-      	commands << zwave.associationV1.associationSet(groupingIdentifier: 2, nodeId: zwaveHubNodeId).format()
-   // 	commands << zwave.sceneControllerConfV1.sceneControllerConfSet(groupId: 4, sceneId:i).format()
-       commands << zwave.configurationV1.configurationSet(parameterNumber:i, size: 1, scaledConfigurationValue:4).format()
-	}
-        for (def i = 13; i <= 14; i++) {
-      	commands << zwave.associationV1.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()
-    //	commands << zwave.sceneControllerConfV1.sceneControllerConfSet(groupId: 5, sceneId:i).format()
-       commands << zwave.configurationV1.configurationSet(parameterNumber:i, size: 1, scaledConfigurationValue:4).format()
-	}
-	
-    log.debug("Sending configuration")
-	
-    
-    delayBetween(commands, 1250)
-    
- */
