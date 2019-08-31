@@ -201,8 +201,8 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.centralscenev1.CentralSceneNotification cmd) {
-		log.debug( "keyAttributes: $cmd.keyAttributes")
-        log.debug( "sceneNumber: $cmd.sceneNumber")
+		//log.debug( "keyAttributes: $cmd.keyAttributes")
+        //log.debug( "sceneNumber: $cmd.sceneNumber")
       if ( cmd.sceneNumber == 1  && cmd.keyAttributes == 0) {
         	Integer button = 1
             sendEvent(name: "Button Events", value: "#$button pushed" as String, descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
@@ -537,10 +537,10 @@ def pushed(int button, int action) {
     String motion = actions[action]
     String motionDescription = actionsDescription[action]
 
-	logger( "$device.displayName button $button was $motionDescription", "info")
-
-	sendEvent(name: "button", value: "$motionDescription", data: [buttonNumber: button, action: "$motion"], source: "COMMAND", descriptionText: "$device.displayName button $button was $motionDescription")
+	sendEvent(name: "button", value: "$motionDescription", data: [buttonNumber: button, action: "$motion"], source: "COMMAND", descriptionText: "$device.displayName button $button was $motionDescription", isStateChange: true)
     sendEvent(name: "Button Events", value: "#$button $motionDescription" as String, descriptionText: "$device.displayName button $button was $motionDescription", isStateChange: true)
+
+	logger( "$device.displayName Button $button was $motionDescription", "debug")
 
 }
 
