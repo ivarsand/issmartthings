@@ -11,16 +11,15 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *
- *  Version 0.1.0
+ *  Version 0.2.0
  *  Author: IvarS
- *  Date: 2019-02-09
+ *  Date: 2019-09-03
  *
  * Parts of code based on fibaro dimmer 2 device handler from David Lomas (codersaur)
- *
  */
  
 metadata {
-	definition (name: "HeatIt Z-Push Button 2", namespace: "issmartthings", author: "ivarsand") {
+	definition (name: "HeatIt Z-Push Button 4", namespace: "issmartthings", author: "ivarsand") {
 		capability "Actuator"
 		capability "Button"
         capability "Battery"
@@ -32,15 +31,19 @@ metadata {
 		command "describeAttributes"
         command "pushOn1"
         command "pushOff1"
+        command "pushOn2"
+        command "pushOff2"
+        command "pushOn3"
+        command "pushOff3"
+        command "pushOn4"
+        command "pushOff4"
         
 		attribute "numberOfButtons", "number"
         attribute "Button Events", "enum",  ["#1 pushed", "#1 held", "#1 double clicked", "#1 click held", "#1 hold released", "#1 click hold released", "#2 pushed", "#2 held", "#2 double clicked", "#2 click held", "#2 hold released", "#2 click hold released", "#3 pushed", "#3 held", "#3 double clicked", "#3 click held", "#3 hold released", "#3 click hold released", "#4 pushed", "#4 held", "#4 double clicked", "#4 click held", "#4 hold released", "#4 click hold released"]
         attribute "button", "enum", ["pushed", "held", "double clicked", "click held"]
         attribute "needUpdate", "string"
 
-		//fingerprint deviceId: "0x1202", inClusters: "0x5E, 0x85, 0x8E, 0x70, 0x5B, 0x59, 0x55, 0x86, 0x72, 0x5A, 0x73, 0x80, 0x98, 0x9F, 0x84, 0x6C", outClusters: "0x26"
-		//fingerprint mfr: "0330", prod: "0300", model: "A305", deviceJoinName: "HeatIt Z-Push Button 8"
-		fingerprint mfr:"019B", prod:"0300", model:"A307", deviceJoinName: "HeatIt Z-Push Button 2"
+		fingerprint mfr: "0330", prod: "0300", model: "A000", deviceJoinName: "HeatIt Z-Push Button 4" 
    }
 
 	simulator {
@@ -80,7 +83,8 @@ metadata {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-    	(1..1).each { btn ->
+		def buttonRows = 2  // 4 buttons give 2 rows
+    	(1..buttonRows).each { btn ->
         	def index = btn * 3 - 3
             tileList << "B${btn}.on".toString()
         	tileList << "B${btn}.space".toString()
@@ -149,7 +153,7 @@ metadata {
 
 def parse(String description) {
 	def results = []
-     //log.debug("RAW command: $description")
+    //log.debug("RAW command: $description")
 	if (description.startsWith("Err")) {
 		log.debug("An error has occurred")
         updateStatus()
@@ -157,7 +161,7 @@ def parse(String description) {
     else {
        
        	def cmd = zwave.parse(description.replace("98C1", "9881"), [0x98: 1, 0x20: 1, 0x84: 1, 0x80: 1, 0x60: 3, 0x2B: 1, 0x26: 1])
-        log.debug "Parsed Command: $cmd"
+        //log.debug "Parsed Command: $cmd"
         if (cmd) {
        	results = zwaveEvent(cmd)
         updateStatus()
@@ -206,7 +210,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelR
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStartLevelChange cmd) {
-	log.debug "Multilevel Start CHange: $cmd"
+	log.debug "Multilevel Start Change: $cmd"
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv1.SwitchMultilevelStopLevelChange cmd) {
@@ -271,33 +275,34 @@ def refresh() {
 def poll() {
     /**
      *  poll()                      [Capability: Polling]
-     *
      *  Calls refresh().
      **/
     logger("poll()","trace")
     refresh()
 }
 
-def refreshOLD() {
-	//configure()
-    updateStatus()
-}
-
 def configure() {
+     
     def commands = [ ]
 			log.debug "Resetting Sensor Parameters to SmartThings Compatible Defaults"
 	def cmds = []
     cmds << zwave.associationV2.associationSet(groupingIdentifier: 1, nodeId: zwaveHubNodeId).format()
     cmds << zwave.associationV2.associationSet(groupingIdentifier: 2, nodeId: zwaveHubNodeId).format()
+    if (state.numberOfButtons > 2) {
+    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 3, nodeId: zwaveHubNodeId).format()
+    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 4, nodeId: zwaveHubNodeId).format()
+    	cmds << zwave.associationV2.associationSet(groupingIdentifier: 5, nodeId: zwaveHubNodeId).format()
+    }
     cmds << zwave.wakeUpV2.wakeUpIntervalSet(seconds:86400, nodeid:zwaveHubNodeId).format()
     cmds << zwave.configurationV1.configurationSet(parameterNumber: 0x03, size: 1, configurationValue: [0]).format()
     cmds << zwave.batteryV1.batteryGet().format()
     delayBetween(cmds, 500)
-
-	if ( !state.numberOfButtons ) {
-    	state.numberOfButtons = "2"
-  	}
-    sendEvent(name: "numberOfButtons", value: "$state.numberOfButtons", displayed: false)
+    
+    // Setting number of buttons
+    if ( !state.numberOfButtons ) {
+    	state.numberOfButtons = "4"
+  	}    
+    sendEvent(name: "numberOfButtons", value: "$state.numberOfButtons", displayed: true)
 }
 
 def describeAttributes(payload) {
@@ -344,7 +349,7 @@ private updateStatus(){
    def result = []
    if(state.batteryRuntimeStart != null){
         //sendEvent(name:"batteryRuntime", value:getBatteryRuntime(), displayed:false)
-        sendEvent(name:"statusText2", value: "Battery: ${getBatteryRuntime()} Double tap to reset", displayed:true)
+        sendEvent(name:"statusText2", value: "Battery: ${getBatteryRuntime()} Double tap to reset.", displayed:true)
         
     } else {
         state.batteryRuntimeStart = now()
@@ -368,13 +373,17 @@ def pushed(int button, int action) {
 }
 
 def pushOn1() {
-	pushed(1, 1)
+	pushed(1, 0)
 }
 def pushOff1() {
-	pushed(2, 1)
+	pushed(2, 0)
 }
-
-
+def pushOn2() {
+	pushed(3, 0)
+}
+def pushOff2() {
+	pushed(4, 0)
+}
 
 
 /*****************************************************************************************************************
@@ -394,7 +403,7 @@ def installed() {
     state.loggingLevelDevice  = 2
     state.protectLocalTarget  = 0
     state.protectRFTarget     = 0
-    state.numberOfButtons     = 2
+    state.numberOfButtons     = 4
 
     //sendEvent(name: "fault", value: "clear", descriptionText: "Fault cleared", displayed: false)
 
@@ -808,6 +817,17 @@ private getParamsMd() {
          options: ["0" : "0: Do not know what this does. (Default)",
                    ]],
 
+
+/*
+        [id:  1, size: 1, type: "number", range: "1..98", defaultValue: 1, required: false, readonly: false,
+         name: "Minimum Brightness Level",
+         description: "Set automatically during the calibration process, but can be changed afterwards.\n" +
+         "Values: 1-98 = Brightness level (%)"],
+*/
+
+
+
+
     ]
 }
 
@@ -816,11 +836,13 @@ private getAssocGroupsMd() {
      *  Returns association groups metadata. Used by sync(), updateSyncPending(), and generatePrefsAssocGroups().
      *  Reference: http://products.z-wavealliance.org/products/1729/assoc
      **/
-    return [
-        [id:  1, maxNodes: 1, name: "Lifeline",
-         description : "Reports device state. Main Z-Wave controller should be added to this group."],
+        return [
+            [id:  1, maxNodes: 1, name: "Lifeline",
+             description : "Reports device state. Main Z-Wave controller should be added to this group."],
 
-		[id:  2, maxNodes: 5, name: "Upper row buttons association",
-         description : "Send On/Off, dim Up/Down when row 1 is used."],
-	]
+            [id:  2, maxNodes: 5, name: "Upper row buttons association",
+             description : "Send On/Off, dim Up/Down when row 1 is used."],
+            [id:  3, maxNodes: 5, name: "Second row buttons association",
+             description : "Send On/Off, dim Up/Down when row 2 is used."],
+        ]
 }
