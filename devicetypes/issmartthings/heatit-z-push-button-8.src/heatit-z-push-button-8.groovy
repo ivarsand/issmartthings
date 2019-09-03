@@ -61,7 +61,7 @@ metadata {
             	attributeState "held", label: "holding", backgroundColor: "#C390D4"
   			}
             tileAttribute ("device.battery", key: "SECONDARY_CONTROL") {
-				attributeState "batteryLevel", label:'${currentValue} % battery'
+				attributeState "batteryLevel", label:'${currentValue} % battery' 
             }
         }
 		tileList << "configure"
