@@ -43,7 +43,8 @@ metadata {
         attribute "button", "enum", ["pushed", "held", "double clicked", "click held"]
         attribute "needUpdate", "string"
 
-		fingerprint mfr: "0330", prod: "0300", model: "A000", deviceJoinName: "HeatIt Z-Push Button 4" 
+		//   Raw Description	zw:Ss type:1801 mfr:019B prod:0300 model:A306 ver:1.26 zwv:5.03 lib:03 cc:5E,55,98,9F,6C sec:86,85,8E,70,5B,59,72,5A,73,80,84,7A secOut:26 role:04 ff:9600 ui:9600
+		fingerprint mfr: "019B", prod: "0300", model: "A306", deviceJoinName: "HeatIt Z-Push Button 4" 
    }
 
 	simulator {
